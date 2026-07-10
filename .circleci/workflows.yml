@@ -3,6 +3,14 @@
 # (pkg/gen/input/circleci) or the gen.ci config in giantswarm/github, not here.
 # Repo-specific jobs and workflows go in .circleci/custom.yml, which the setup
 # workflow in .circleci/config.yml merges into this file at pipeline runtime.
+#
+# Local deviations from the generated default, until this repo is registered
+# in giantswarm/github (align-files will then reconcile):
+# - branch builds push to the test catalog (push_to_appcatalog: true) so PRs
+#   demonstrate the publish path
+# - the run-tests-with-ats jobs are removed: ATS's smoke scenario deploys the
+#   chart into a bare kind cluster, which lacks the kagent CRDs the Agent CR
+#   needs; re-add once an .ats config with a kagent bootstrap exists
 version: 2.1
 orbs:
   architect: giantswarm/architect@9.5.2
@@ -11,9 +19,8 @@ workflows:
   build:
     jobs:
 
-    # build-chart: package + lint via app-build-suite and persist the archive
-    # (no push). Shared by the branch and tag paths -- branches get build + test
-    # only by default.
+    # build-chart: package + lint via app-build-suite; on branches the chart
+    # is pushed to the test catalog (giantswarm-test-catalog).
     - architect/push-to-app-catalog:
         executor: app-build-suite
         context: architect
@@ -21,8 +28,8 @@ workflows:
         app_catalog: giantswarm-catalog
         app_catalog_test: giantswarm-test-catalog
         chart: agent
-        push_to_appcatalog: false
-        push_to_oci_registry: false
+        push_to_appcatalog: true
+        push_to_oci_registry: true
         persist_chart_archive: true
         filters:
           tags:
@@ -31,34 +38,7 @@ workflows:
             ignore:
             - main
 
-    # Branch: run chart tests after build-chart. When branchPublish pushes a dev
-    # image, the test also waits on push-to-registries -- run-tests-with-ats
-    # deploys the chart, which pulls that image from gsoci, and gating on the
-    # push avoids an ImagePullBackOff race.
-    - architect/run-tests-with-ats:
-        name: execute-chart-tests
-        requires:
-        - build-chart
-        filters:
-          branches:
-            ignore:
-            - main
-
-    # Tag: run chart tests after the release image is pushed, for the same
-    # image-availability reason as the branch job above.
-    - architect/run-tests-with-ats:
-        name: execute-chart-tests-release
-        requires:
-        - build-chart
-        filters:
-          tags:
-            only: /^v.*/
-          branches:
-            ignore: /.*/
-
-    # Tag: push chart after tests + the gsoci image. Intentionally does NOT
-    # depend on sync-china-registry so the chart catalog can publish even if
-    # the in-China Aliyun mirror is slow or fails.
+    # Tag: push chart to the release catalog.
     - architect/push-to-app-catalog:
         executor: app-build-suite
         context: architect
@@ -67,7 +47,7 @@ workflows:
         app_catalog_test: giantswarm-test-catalog
         chart: agent
         requires:
-        - execute-chart-tests-release
+        - build-chart
         filters:
           tags:
             only: /^v.*/
