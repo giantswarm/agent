@@ -1,12 +1,79 @@
-# This file is a Helm values file for the agent chart.
+# Default values for the agent chart.
 #
-# To learn more about how to configure your app on your cluster
-# and override the default values in here, visit:
-#
-#   https://docs.giantswarm.io/tutorials/fleet-management/app-platform/app-configuration/#basic-values-merging-example
-#
-image:
-  name: "giantswarm/agent"
-  tag: ""
-registry:
-  domain: gsoci.azurecr.io
+# One chart release = one agent. The chart renders a single kagent Agent
+# custom resource. It never renders a ModelConfig, a Secret or the muster
+# RemoteMCPServer — those are platform-admin owned and referenced by name.
+
+agent:
+  # Technical resource name (DNS-1123). Defaults to the Helm release name.
+  name: ""
+  # Human-friendly name, Unicode allowed. Rendered as the
+  # ui.giantswarm.io/display-name annotation on the Agent.
+  displayName: ""
+  # Rendered into the Agent's spec.description.
+  description: ""
+  # The agent's system prompt.
+  systemMessage: |
+    You are a helpful agent.
+  # kagent runtime for the agent.
+  runtime: go
+
+# Which platform-admin-provisioned ModelConfig the agent uses, referenced by
+# name. kagent resolves it in the agent's own namespace. The chart never
+# creates or mutates a ModelConfig, and tenants never handle LLM credentials.
+modelConfig:
+  name: default-model-config
+
+# kagent-native skills, pulled by the skills-init container and mounted under
+# /skills. Prefer immutable refs (image tag/digest, git tag/SHA) in long-lived
+# installs; git branches are a development convenience.
+skills:
+  # OCI skill image references, e.g. ["registry.example.io/skills/runbooks:1.4.0"]
+  refs: []
+  # Git repository references for development iteration.
+  gitRefs: []
+
+# The platform's shared muster gateway, referenced cross-namespace. The
+# RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this
+# agent's namespace. toolNames is omitted by default on purpose: muster's
+# tools are dynamic and no toolNames means no tool filter — the agent gets
+# every tool the gateway exposes.
+muster:
+  enabled: true
+  serverRef:
+    kind: RemoteMCPServer
+    apiGroup: kagent.dev
+    name: muster
+    namespace: agentic-platform
+  allowedHeaders:
+    - authorization
+  # Set to narrow the tool surface; leave empty for all (dynamic) tools.
+  toolNames: []
+  # OAuth authorization server discovery URI of the installation's STS, used
+  # for muster token propagation. Set per installation.
+  stsWellKnownUri: ""
+
+# Additional raw kagent tool entries appended after the muster gateway.
+extraTools: []
+
+replicas: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+
+# Extra labels merged over the standard set, e.g. tenant/owner dimensions.
+labels: {}
+# Extra annotations merged next to the display-name annotation.
+annotations: {}
+
+# Escape hatch: deep-merged over the curated Agent spec (this wins), so any
+# kagent Agent field is reachable when the curated surface omits something.
+extraAgentSpec: {}

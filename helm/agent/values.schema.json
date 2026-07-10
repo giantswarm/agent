@@ -1,25 +1,145 @@
 {
     "$schema": "http://json-schema.org/schema#",
     "type": "object",
+    "additionalProperties": false,
     "properties": {
-        "image": {
+        "agent": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 63,
+                    "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+                    "description": "Technical DNS-1123 name of the Agent. Defaults to the release name."
                 },
-                "tag": {
-                    "type": "string"
+                "displayName": {
+                    "type": "string",
+                    "maxLength": 63,
+                    "description": "Human-friendly Unicode name, rendered as the ui.giantswarm.io/display-name annotation. Size-limited so it cannot become a description."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Rendered into the Agent's spec.description."
+                },
+                "systemMessage": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The agent's system prompt."
+                },
+                "runtime": {
+                    "type": "string",
+                    "description": "kagent runtime for the agent."
                 }
             }
         },
-        "registry": {
+        "modelConfig": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
-                "domain": {
-                    "type": "string"
+                "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Name of the admin-provisioned ModelConfig in the agent's namespace."
                 }
             }
+        },
+        "skills": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "refs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "OCI skill image references."
+                },
+                "gitRefs": {
+                    "type": "array",
+                    "description": "Git repository skill references for development iteration."
+                }
+            }
+        },
+        "muster": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "serverRef": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "kind": {
+                            "type": "string"
+                        },
+                        "apiGroup": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "namespace": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "allowedHeaders": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "toolNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Leave empty to expose every (dynamic) tool the gateway offers."
+                },
+                "stsWellKnownUri": {
+                    "type": "string",
+                    "description": "OAuth authorization server discovery URI of the installation's STS."
+                }
+            }
+        },
+        "extraTools": {
+            "type": "array",
+            "description": "Additional raw kagent tool entries."
+        },
+        "replicas": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "resources": {
+            "type": "object"
+        },
+        "nodeSelector": {
+            "type": "object"
+        },
+        "tolerations": {
+            "type": "array"
+        },
+        "labels": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "annotations": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "extraAgentSpec": {
+            "type": "object",
+            "description": "Deep-merged over the curated Agent spec; this wins on conflicts."
+        },
+        "global": {
+            "type": "object"
         }
     }
 }
