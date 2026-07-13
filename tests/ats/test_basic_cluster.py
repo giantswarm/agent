@@ -18,6 +18,10 @@ def test_agent_cr_created(kube_cluster: Cluster) -> None:
     cluster via `cluster-crds` in .ats/main.yaml). No kagent controller runs
     here -- acceptance by the API server is the assertion, not
     reconciliation.
+
+    Written against the post-0.15.0 ATS contract (cluster-crds option,
+    ATS_RELEASE_* env vars); skipped via skip-steps in .ats/main.yaml until
+    dats.sh ships that release.
     """
     release_name = os.environ["ATS_RELEASE_NAME"]
     namespace = os.environ.get("ATS_RELEASE_NAMESPACE", "default")
