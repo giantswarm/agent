@@ -10,7 +10,11 @@ appVersion: 0.0.1
 name: agent
 
 # Please describe what the app provides in a sentence or two.
-description: Please add description
+description: >-
+  Create a kagent agent on the Giant Swarm agentic platform from a small,
+  curated values surface. One chart release renders exactly one Agent
+  custom resource; model configuration, credentials and the muster gateway
+  are platform-admin owned and only referenced by name.
 
 # URL of the GitHub repository that is the source of this Chart.yaml file.
 home: https://github.com/giantswarm/agent
@@ -20,7 +24,7 @@ home: https://github.com/giantswarm/agent
 icon: https://s.giantswarm.io/app-icons/giantswarm/1/light.svg
 
 sources:
-- https://github.com/some-org/some-repo
+- https://github.com/giantswarm/agent
 version: 0.0.0-dev
 annotations:
   # Adapt to 'giantswarm' if this application is not to be deployed by customers
@@ -28,4 +32,4 @@ annotations:
   # Adapt to 'true' if Giant Swarm takes responsibility for this app where it's deplyed
   io.giantswarm.application.managed: "false"
   # used through .Chart.Annotations . Please replace TEAM-NAME with your team's short name, e. g. 'shield'  for team-shield
-  io.giantswarm.application.team: TEAM-NAME
+  io.giantswarm.application.team: bumblebee
