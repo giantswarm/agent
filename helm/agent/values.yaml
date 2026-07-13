@@ -1,79 +1,136 @@
+# yaml-language-server: $schema=values.schema.json
 # Default values for the agent chart.
 #
 # One chart release = one agent. The chart renders a single kagent Agent
 # custom resource. It never renders a ModelConfig, a Secret or the muster
 # RemoteMCPServer — those are platform-admin owned and referenced by name.
+#
+# values.schema.json is generated from the # @schema annotations in this
+# file by the helm-schema pre-commit hook (losisin/helm-values-schema-json);
+# edit the annotations here, never the schema directly.
 
+# -- Identity and prompt of the agent.
 agent:
-  # Technical resource name (DNS-1123). Defaults to the Helm release name.
+  # @schema type:string;maxLength:63;pattern:^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+  # -- Technical resource name (DNS-1123). Defaults to the Helm release name.
   name: ""
-  # Human-friendly name, Unicode allowed. Rendered as the
-  # ui.giantswarm.io/display-name annotation on the Agent.
+  # @schema type:string;maxLength:63
+  # -- Human-friendly name, Unicode allowed. Rendered as the
+  # ui.giantswarm.io/display-name annotation on the Agent. Size-limited so it
+  # cannot become a description.
   displayName: ""
-  # Rendered into the Agent's spec.description.
+  # @schema type:string
+  # -- Rendered into the Agent's spec.description.
   description: ""
-  # The agent's system prompt.
+  # @schema type:string;minLength:1
+  # -- The agent's system prompt.
   systemMessage: |
     You are a helpful agent.
-  # kagent runtime for the agent.
+  # @schema enum:[go, python]
+  # -- kagent runtime for the agent. Mirrors the Agent CRD's
+  # spec.declarative.runtime enum.
   runtime: go
 
-# Which platform-admin-provisioned ModelConfig the agent uses, referenced by
-# name. kagent resolves it in the agent's own namespace. The chart never
+# -- Which platform-admin-provisioned ModelConfig the agent uses, referenced
+# by name. kagent resolves it in the agent's own namespace. The chart never
 # creates or mutates a ModelConfig, and tenants never handle LLM credentials.
 modelConfig:
+  # @schema type:string;minLength:1
+  # -- Name of the admin-provisioned ModelConfig in the agent's namespace.
   name: default-model-config
 
-# kagent-native skills, pulled by the skills-init container and mounted under
-# /skills. Prefer immutable refs (image tag/digest, git tag/SHA) in long-lived
-# installs; git branches are a development convenience.
+# -- kagent-native skills, pulled by the skills-init container and mounted
+# under /skills. Prefer immutable refs (image tag/digest, git tag/SHA) in
+# long-lived installs; git branches are a development convenience.
 skills:
-  # OCI skill image references, e.g. ["registry.example.io/skills/runbooks:1.4.0"]
+  # @schema type:array;item:string
+  # -- OCI skill image references, e.g. ["registry.example.io/skills/runbooks:1.4.0"]
   refs: []
-  # Git repository references for development iteration.
+  # @schema type:array
+  # -- Git repository references for development iteration.
   gitRefs: []
 
-# The platform's shared muster gateway, referenced cross-namespace. The
+# -- The platform's shared muster gateway, referenced cross-namespace. The
 # RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this
-# agent's namespace. toolNames is omitted by default on purpose: muster's
-# tools are dynamic and no toolNames means no tool filter — the agent gets
-# every tool the gateway exposes.
+# agent's namespace.
 muster:
+  # @schema type:boolean
+  # -- Wire the shared muster gateway into the agent's tools.
   enabled: true
+  # -- Reference to the admin-owned RemoteMCPServer.
   serverRef:
+    # @schema type:string
+    # -- Kind of the referenced resource.
     kind: RemoteMCPServer
+    # @schema type:string
+    # -- API group of the referenced resource.
     apiGroup: kagent.dev
+    # @schema type:string
+    # -- Name of the referenced resource.
     name: muster
+    # @schema type:string
+    # -- Namespace of the referenced resource.
     namespace: agentic-platform
+  # @schema type:array;item:string
+  # -- HTTP headers forwarded to the gateway.
   allowedHeaders:
     - authorization
-  # Set to narrow the tool surface; leave empty for all (dynamic) tools.
+  # @schema type:array;item:string
+  # -- Set to narrow the tool surface; leave empty for all tools. muster's
+  # tools are dynamic and no toolNames means no tool filter — the agent gets
+  # every tool the gateway exposes.
   toolNames: []
-  # OAuth authorization server discovery URI of the installation's STS, used
-  # for muster token propagation. Set per installation.
+  # @schema type:string
+  # -- OAuth authorization server discovery URI of the installation's STS,
+  # used for muster token propagation. Set per installation.
   stsWellKnownUri: ""
 
-# Additional raw kagent tool entries appended after the muster gateway.
+# @schema type:array
+# -- Additional raw kagent tool entries appended after the muster gateway.
 extraTools: []
 
+# @schema type:integer;minimum:0
+# -- Number of agent pod replicas.
 replicas: 1
 
+# @schema additionalProperties:true
+# -- Compute resources of the agent deployment.
 resources:
+  # @schema additionalProperties:true
+  # -- Resource requests.
   requests:
+    # @schema type:[string, number]
+    # -- CPU request.
     cpu: 100m
+    # @schema type:[string, number]
+    # -- Memory request.
     memory: 256Mi
+  # @schema additionalProperties:true
+  # -- Resource limits.
   limits:
+    # @schema type:[string, number]
+    # -- CPU limit.
     cpu: "1"
+    # @schema type:[string, number]
+    # -- Memory limit.
     memory: 512Mi
 
+# @schema type:object;additionalProperties:{"type":"string"}
+# -- Node selector for agent pod scheduling.
 nodeSelector: {}
+# @schema type:array
+# -- Tolerations for agent pod scheduling.
 tolerations: []
 
-# Extra labels merged over the standard set, e.g. tenant/owner dimensions.
+# @schema type:object;additionalProperties:{"type":"string"}
+# -- Extra labels merged over the standard set, e.g. tenant/owner dimensions.
 labels: {}
-# Extra annotations merged next to the display-name annotation.
+# @schema type:object;additionalProperties:{"type":"string"}
+# -- Extra annotations merged next to the display-name annotation.
 annotations: {}
 
-# Escape hatch: deep-merged over the curated Agent spec (this wins), so any
-# kagent Agent field is reachable when the curated surface omits something.
+# @schema type:object;additionalProperties:true
+# -- Escape hatch: deep-merged over the curated Agent spec (this wins), so
+# any kagent Agent field is reachable when the curated surface omits
+# something.
 extraAgentSpec: {}

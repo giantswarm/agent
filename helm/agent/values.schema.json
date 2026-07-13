@@ -1,146 +1,220 @@
 {
-    "$schema": "http://json-schema.org/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "additionalProperties": false,
     "properties": {
         "agent": {
+            "description": "Identity and prompt of the agent.",
             "type": "object",
-            "additionalProperties": false,
             "properties": {
-                "name": {
-                    "type": "string",
-                    "maxLength": 63,
-                    "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
-                    "description": "Technical DNS-1123 name of the Agent. Defaults to the release name."
+                "description": {
+                    "description": "Rendered into the Agent's spec.description.",
+                    "type": "string"
                 },
                 "displayName": {
+                    "description": "Human-friendly name, Unicode allowed. Rendered as the ui.giantswarm.io/display-name annotation on the Agent. Size-limited so it cannot become a description.",
                     "type": "string",
-                    "maxLength": 63,
-                    "description": "Human-friendly Unicode name, rendered as the ui.giantswarm.io/display-name annotation. Size-limited so it cannot become a description."
+                    "maxLength": 63
                 },
-                "description": {
+                "name": {
+                    "description": "Technical resource name (DNS-1123). Defaults to the Helm release name.",
                     "type": "string",
-                    "description": "Rendered into the Agent's spec.description."
-                },
-                "systemMessage": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "The agent's system prompt."
+                    "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+                    "maxLength": 63
                 },
                 "runtime": {
+                    "description": "kagent runtime for the agent. Mirrors the Agent CRD's spec.declarative.runtime enum.",
                     "type": "string",
-                    "enum": ["go", "python"],
-                    "description": "kagent runtime for the agent. Mirrors the Agent CRD's spec.declarative.runtime enum."
-                }
-            }
-        },
-        "modelConfig": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "name": {
+                    "enum": [
+                        "go",
+                        "python"
+                    ]
+                },
+                "systemMessage": {
+                    "description": "The agent's system prompt.",
                     "type": "string",
-                    "minLength": 1,
-                    "description": "Name of the admin-provisioned ModelConfig in the agent's namespace."
+                    "minLength": 1
                 }
-            }
-        },
-        "skills": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "refs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "description": "OCI skill image references."
-                },
-                "gitRefs": {
-                    "type": "array",
-                    "description": "Git repository skill references for development iteration."
-                }
-            }
-        },
-        "muster": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "serverRef": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "kind": {
-                            "type": "string"
-                        },
-                        "apiGroup": {
-                            "type": "string"
-                        },
-                        "name": {
-                            "type": "string"
-                        },
-                        "namespace": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "allowedHeaders": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "toolNames": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "description": "Leave empty to expose every (dynamic) tool the gateway offers."
-                },
-                "stsWellKnownUri": {
-                    "type": "string",
-                    "description": "OAuth authorization server discovery URI of the installation's STS."
-                }
-            }
-        },
-        "extraTools": {
-            "type": "array",
-            "description": "Additional raw kagent tool entries."
-        },
-        "replicas": {
-            "type": "integer",
-            "minimum": 0
-        },
-        "resources": {
-            "type": "object"
-        },
-        "nodeSelector": {
-            "type": "object"
-        },
-        "tolerations": {
-            "type": "array"
-        },
-        "labels": {
-            "type": "object",
-            "additionalProperties": {
-                "type": "string"
-            }
+            },
+            "additionalProperties": false
         },
         "annotations": {
+            "description": "Extra annotations merged next to the display-name annotation.",
             "type": "object",
             "additionalProperties": {
                 "type": "string"
             }
         },
         "extraAgentSpec": {
+            "description": "Escape hatch: deep-merged over the curated Agent spec (this wins), so any kagent Agent field is reachable when the curated surface omits something.",
             "type": "object",
-            "description": "Deep-merged over the curated Agent spec; this wins on conflicts."
+            "additionalProperties": true
+        },
+        "extraTools": {
+            "description": "Additional raw kagent tool entries appended after the muster gateway.",
+            "type": "array"
         },
         "global": {
-            "type": "object"
+            "description": "Global values shared between all subcharts",
+            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key.",
+            "type": [
+                "object",
+                "null"
+            ]
+        },
+        "labels": {
+            "description": "Extra labels merged over the standard set, e.g. tenant/owner dimensions.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "modelConfig": {
+            "description": "Which platform-admin-provisioned ModelConfig the agent uses, referenced by name. kagent resolves it in the agent's own namespace. The chart never creates or mutates a ModelConfig, and tenants never handle LLM credentials.",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Name of the admin-provisioned ModelConfig in the agent's namespace.",
+                    "type": "string",
+                    "minLength": 1
+                }
+            },
+            "additionalProperties": false
+        },
+        "muster": {
+            "description": "The platform's shared muster gateway, referenced cross-namespace. The RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this agent's namespace.",
+            "type": "object",
+            "properties": {
+                "allowedHeaders": {
+                    "description": "HTTP headers forwarded to the gateway.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "description": "Wire the shared muster gateway into the agent's tools.",
+                    "type": "boolean"
+                },
+                "serverRef": {
+                    "description": "Reference to the admin-owned RemoteMCPServer.",
+                    "type": "object",
+                    "properties": {
+                        "apiGroup": {
+                            "description": "API group of the referenced resource.",
+                            "type": "string"
+                        },
+                        "kind": {
+                            "description": "Kind of the referenced resource.",
+                            "type": "string"
+                        },
+                        "name": {
+                            "description": "Name of the referenced resource.",
+                            "type": "string"
+                        },
+                        "namespace": {
+                            "description": "Namespace of the referenced resource.",
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "stsWellKnownUri": {
+                    "description": "OAuth authorization server discovery URI of the installation's STS, used for muster token propagation. Set per installation.",
+                    "type": "string"
+                },
+                "toolNames": {
+                    "description": "Set to narrow the tool surface; leave empty for all tools. muster's tools are dynamic and no toolNames means no tool filter — the agent gets every tool the gateway exposes.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "additionalProperties": false
+        },
+        "nodeSelector": {
+            "description": "Node selector for agent pod scheduling.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "replicas": {
+            "description": "Number of agent pod replicas.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "resources": {
+            "description": "Compute resources of the agent deployment.",
+            "type": "object",
+            "properties": {
+                "limits": {
+                    "description": "Resource limits.",
+                    "type": "object",
+                    "properties": {
+                        "cpu": {
+                            "description": "CPU limit.",
+                            "type": [
+                                "string",
+                                "number"
+                            ]
+                        },
+                        "memory": {
+                            "description": "Memory limit.",
+                            "type": [
+                                "string",
+                                "number"
+                            ]
+                        }
+                    },
+                    "additionalProperties": true
+                },
+                "requests": {
+                    "description": "Resource requests.",
+                    "type": "object",
+                    "properties": {
+                        "cpu": {
+                            "description": "CPU request.",
+                            "type": [
+                                "string",
+                                "number"
+                            ]
+                        },
+                        "memory": {
+                            "description": "Memory request.",
+                            "type": [
+                                "string",
+                                "number"
+                            ]
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            "additionalProperties": true
+        },
+        "skills": {
+            "description": "kagent-native skills, pulled by the skills-init container and mounted under /skills. Prefer immutable refs (image tag/digest, git tag/SHA) in long-lived installs; git branches are a development convenience.",
+            "type": "object",
+            "properties": {
+                "gitRefs": {
+                    "description": "Git repository references for development iteration.",
+                    "type": "array"
+                },
+                "refs": {
+                    "description": "OCI skill image references, e.g. [\"registry.example.io/skills/runbooks:1.4.0\"]",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "additionalProperties": false
+        },
+        "tolerations": {
+            "description": "Tolerations for agent pod scheduling.",
+            "type": "array"
         }
-    }
+    },
+    "additionalProperties": false
 }
