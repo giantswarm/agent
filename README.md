@@ -51,20 +51,8 @@ surface.
 
 ### Values
 
-| Key | Default | Purpose |
-| --- | --- | --- |
-| `agent.name` | release name | Technical DNS-1123 name of the Agent |
-| `agent.displayName` | `""` | Friendly Unicode name (max 63 chars), rendered as the `ui.giantswarm.io/display-name` annotation |
-| `agent.description` | `""` | `spec.description` |
-| `agent.systemMessage` | placeholder | The system prompt |
-| `agent.runtime` | `go` | kagent runtime |
-| `modelConfig.name` | `default-model-config` | Admin-provisioned ModelConfig, same namespace, referenced by name |
-| `skills.refs` / `skills.gitRefs` | `[]` | kagent-native skills (OCI images / git repos for dev iteration) |
-| `muster.*` | shared gateway | Server reference, `allowedHeaders`, optional `toolNames`, STS well-known URI |
-| `extraTools` | `[]` | Additional raw kagent tool entries |
-| `replicas`, `resources`, `nodeSelector`, `tolerations` | sane defaults | Runtime knobs |
-| `labels` / `annotations` | `{}` | Merged over the standard metadata set |
-| `extraAgentSpec` | `{}` | Escape hatch: deep-merged over the curated spec (wins on conflict), so any kagent `Agent` field stays reachable |
+See the [chart values reference](helm/agent/README.md) for all available values
+and their defaults.
 
 `values.schema.json` encodes the curated contract, so bad values fail with a
 legible error before anything hits the cluster.
