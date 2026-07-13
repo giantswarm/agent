@@ -1,0 +1,18 @@
+# app-test-suite config. Consumed by the generated `run-tests-with-ats`
+# CircleCI job (execute-chart-tests). Without `smoke-tests-cluster-type` ATS
+# errors out before testing ("Unknown cluster type 'None'").
+#
+# The chart renders exactly one kagent Agent CR, so `helm install` on a bare
+# kind cluster would fail on the missing CRD. cluster-crds points kubectl at
+# the real Agent CRD -- pinned to the version vendored in giantswarm/kagent-app
+# (950 KB, too large to vendor here) -- instead of ATS's default bundled
+# app-platform CRDs, which nothing here uses: ATS deploys the chart under test
+# with plain helm. The smoke test then asserts the release produced exactly
+# one schema-valid Agent.
+cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-app/v0.1.25/helm/kagent/crds/kagent.dev/kagent.dev_agents.yaml
+
+smoke-tests-cluster-type: kind
+
+# No functional tests yet -- they would need a kagent controller reconciling
+# the Agent. upgrade needs an already-released chart version to upgrade from.
+skip-steps: [functional,upgrade]
