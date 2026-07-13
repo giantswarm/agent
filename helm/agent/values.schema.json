@@ -29,7 +29,8 @@
                 },
                 "runtime": {
                     "type": "string",
-                    "description": "kagent runtime for the agent."
+                    "enum": ["go", "python"],
+                    "description": "kagent runtime for the agent. Mirrors the Agent CRD's spec.declarative.runtime enum."
                 }
             }
         },
