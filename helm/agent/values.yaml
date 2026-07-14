@@ -81,13 +81,14 @@ muster:
   # every tool the gateway exposes.
   toolNames: []
   # @schema type:string
-  # -- OAuth authorization server discovery URI of muster's STS, used to
-  # exchange the propagated caller token for a muster access token before
-  # tool calls. The default targets muster's in-cluster Service: the discovery
-  # document is served unauthenticated and carries absolute endpoint URLs, so
-  # it is identical on every installation. Override only for a non-standard
-  # muster deployment; set to "" to disable the exchange (propagate-only).
-  stsWellKnownUri: http://muster.agentic-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server
+  # -- OAuth authorization server discovery URI of muster's STS. Leave empty
+  # (the default): under the platform's dex-only trust model (muster does not
+  # sign tokens) the propagated caller token is presented directly as the MCP
+  # bearer and no exchange happens — a configured URI would attempt an
+  # RFC 8693 exchange that muster refuses. Set only against a muster that
+  # runs in JWT mode; its in-cluster discovery URL is
+  # http://muster.agentic-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server
+  stsWellKnownUri: ""
 
 # @schema type:array
 # -- Additional raw kagent tool entries appended after the muster gateway.
