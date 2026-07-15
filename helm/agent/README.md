@@ -32,7 +32,7 @@ Create a kagent agent on the Giant Swarm agentic platform from a small, curated 
 | muster.serverRef.namespace | string | `"agentic-platform"` | Namespace of the referenced resource. |
 | muster.allowedHeaders | list | `["authorization"]` | HTTP headers forwarded to the gateway. |
 | muster.toolNames | list | `[]` | Set to narrow the tool surface; leave empty for all tools. muster's tools are dynamic and no toolNames means no tool filter — the agent gets every tool the gateway exposes. |
-| muster.stsWellKnownUri | string | `""` | OAuth authorization server discovery URI of the installation's STS, used for muster token propagation. Set per installation. |
+| muster.stsWellKnownUri | string | `""` | OAuth authorization server discovery URI of muster's STS. Leave empty (the default): under the platform's dex-only trust model (muster does not sign tokens) the propagated caller token is presented directly as the MCP bearer and no exchange happens — a configured URI would attempt an RFC 8693 exchange that muster refuses. Set only against a muster that runs in JWT mode; its in-cluster discovery URL is http://muster.agentic-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server |
 | extraTools | list | `[]` | Additional raw kagent tool entries appended after the muster gateway. |
 | replicas | int | `1` | Number of agent pod replicas. |
 | resources | object | `{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Compute resources of the agent deployment. |
