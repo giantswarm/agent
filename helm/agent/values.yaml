@@ -22,6 +22,11 @@ agent:
   # @schema type:string
   # -- Rendered into the Agent's spec.description.
   description: ""
+  # @schema type:string
+  # -- Fully qualified URL of the agent's avatar icon. Rendered into the
+  # Agent's spec.iconUrl and surfaced on the A2A AgentCard. Populated by the
+  # Backstage agent-creation flow with the canonical avatar URL.
+  iconUrl: ""
   # @schema type:string;minLength:1
   # -- The agent's system prompt.
   systemMessage: |

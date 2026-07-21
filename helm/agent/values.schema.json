@@ -15,6 +15,10 @@
                     "type": "string",
                     "maxLength": 63
                 },
+                "iconUrl": {
+                    "description": "Fully qualified URL of the agent's avatar icon. Rendered into the Agent's spec.iconUrl and surfaced on the A2A AgentCard. Populated by the Backstage agent-creation flow with the canonical avatar URL.",
+                    "type": "string"
+                },
                 "name": {
                     "description": "Technical resource name (DNS-1123). Defaults to the Helm release name.",
                     "type": "string",
