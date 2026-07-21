@@ -12,10 +12,11 @@ Create a kagent agent on the Giant Swarm agentic platform from a small, curated 
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| agent | object | `{"description":"","displayName":"","name":"","runtime":"go","systemMessage":"You are a helpful agent.\n"}` | Identity and prompt of the agent. |
+| agent | object | `{"description":"","displayName":"","iconUrl":"","name":"","runtime":"go","systemMessage":"You are a helpful agent.\n"}` | Identity and prompt of the agent. |
 | agent.name | string | `""` | Technical resource name (DNS-1123). Defaults to the Helm release name. |
 | agent.displayName | string | `""` | Human-friendly name, Unicode allowed. Rendered as the ui.giantswarm.io/display-name annotation on the Agent. Size-limited so it cannot become a description. |
 | agent.description | string | `""` | Rendered into the Agent's spec.description. |
+| agent.iconUrl | string | `""` | Fully qualified URL of the agent's avatar icon. Rendered into the Agent's spec.iconUrl and surfaced on the A2A AgentCard. Populated by the Backstage agent-creation flow with the canonical avatar URL. |
 | agent.systemMessage | string | `"You are a helpful agent.\n"` | The agent's system prompt. |
 | agent.runtime | string | `"go"` | kagent runtime for the agent. Mirrors the Agent CRD's spec.declarative.runtime enum. |
 | modelConfig | object | `{"name":"default-model-config"}` | Which platform-admin-provisioned ModelConfig the agent uses, referenced by name. kagent resolves it in the agent's own namespace. The chart never creates or mutates a ModelConfig, and tenants never handle LLM credentials. |

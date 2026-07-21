@@ -48,6 +48,9 @@ type: Declarative
 {{- with .Values.agent.description }}
 description: {{ . | quote }}
 {{- end }}
+{{- with .Values.agent.iconUrl }}
+iconUrl: {{ . | quote }}
+{{- end }}
 {{- if or .Values.skills.refs .Values.skills.gitRefs }}
 skills:
   {{- with .Values.skills.refs }}
