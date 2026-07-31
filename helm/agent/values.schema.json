@@ -1,224 +1,224 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
+    "additionalProperties": false,
     "properties": {
         "agent": {
-            "description": "Identity and prompt of the agent.",
             "type": "object",
+            "description": "Identity and prompt of the agent.",
+            "additionalProperties": false,
             "properties": {
                 "description": {
-                    "description": "Rendered into the Agent's spec.description.",
-                    "type": "string"
+                    "type": "string",
+                    "description": "Rendered into the Agent's spec.description."
                 },
                 "displayName": {
-                    "description": "Human-friendly name, Unicode allowed. Rendered as the ui.giantswarm.io/display-name annotation on the Agent. Size-limited so it cannot become a description.",
                     "type": "string",
+                    "description": "Human-friendly name, Unicode allowed. Rendered as the ui.giantswarm.io/display-name annotation on the Agent. Size-limited so it cannot become a description.",
                     "maxLength": 63
                 },
                 "iconUrl": {
-                    "description": "Fully qualified URL of the agent's avatar icon. Rendered into the Agent's spec.iconUrl and surfaced on the A2A AgentCard. Populated by the Backstage agent-creation flow with the canonical avatar URL.",
-                    "type": "string"
+                    "type": "string",
+                    "description": "Fully qualified URL of the agent's avatar icon. Rendered into the Agent's spec.iconUrl and surfaced on the A2A AgentCard. Populated by the Backstage agent-creation flow with the canonical avatar URL."
                 },
                 "name": {
-                    "description": "Technical resource name (DNS-1123). Defaults to the Helm release name.",
                     "type": "string",
-                    "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
-                    "maxLength": 63
+                    "description": "Technical resource name (DNS-1123). Defaults to the Helm release name.",
+                    "maxLength": 63,
+                    "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
                 },
                 "runtime": {
-                    "description": "kagent runtime for the agent. Mirrors the Agent CRD's spec.declarative.runtime enum.",
                     "type": "string",
+                    "description": "kagent runtime for the agent. Mirrors the Agent CRD's spec.declarative.runtime enum.",
                     "enum": [
                         "go",
                         "python"
                     ]
                 },
                 "systemMessage": {
-                    "description": "The agent's system prompt.",
                     "type": "string",
+                    "description": "The agent's system prompt.",
                     "minLength": 1
                 }
-            },
-            "additionalProperties": false
+            }
         },
         "annotations": {
-            "description": "Extra annotations merged next to the display-name annotation.",
             "type": "object",
+            "description": "Extra annotations merged next to the display-name annotation.",
             "additionalProperties": {
                 "type": "string"
             }
         },
         "extraAgentSpec": {
-            "description": "Escape hatch: deep-merged over the curated Agent spec (this wins), so any kagent Agent field is reachable when the curated surface omits something.",
             "type": "object",
+            "description": "Escape hatch: deep-merged over the curated Agent spec (this wins), so any kagent Agent field is reachable when the curated surface omits something.",
             "additionalProperties": true
         },
         "extraTools": {
-            "description": "Additional raw kagent tool entries appended after the muster gateway.",
-            "type": "array"
+            "type": "array",
+            "description": "Additional raw kagent tool entries appended after the muster gateway."
         },
         "global": {
-            "description": "Global values shared between all subcharts",
-            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key.",
             "type": [
                 "object",
                 "null"
-            ]
+            ],
+            "description": "Global values shared between all subcharts",
+            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key."
         },
         "labels": {
-            "description": "Extra labels merged over the standard set, e.g. tenant/owner dimensions.",
             "type": "object",
+            "description": "Extra labels merged over the standard set, e.g. tenant/owner dimensions.",
             "additionalProperties": {
                 "type": "string"
             }
         },
         "modelConfig": {
-            "description": "Which platform-admin-provisioned ModelConfig the agent uses, referenced by name. kagent resolves it in the agent's own namespace. The chart never creates or mutates a ModelConfig, and tenants never handle LLM credentials.",
             "type": "object",
+            "description": "Which platform-admin-provisioned ModelConfig the agent uses, referenced by name. kagent resolves it in the agent's own namespace. The chart never creates or mutates a ModelConfig, and tenants never handle LLM credentials.",
+            "additionalProperties": false,
             "properties": {
                 "name": {
-                    "description": "Name of the admin-provisioned ModelConfig in the agent's namespace.",
                     "type": "string",
+                    "description": "Name of the admin-provisioned ModelConfig in the agent's namespace.",
                     "minLength": 1
                 }
-            },
-            "additionalProperties": false
+            }
         },
         "muster": {
-            "description": "The platform's shared muster gateway, referenced cross-namespace. The RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this agent's namespace.",
             "type": "object",
+            "description": "The platform's shared muster gateway, referenced cross-namespace. The RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this agent's namespace.",
+            "additionalProperties": false,
             "properties": {
                 "allowedHeaders": {
-                    "description": "HTTP headers forwarded to the gateway.",
                     "type": "array",
+                    "description": "HTTP headers forwarded to the gateway.",
                     "items": {
                         "type": "string"
                     }
                 },
                 "enabled": {
-                    "description": "Wire the shared muster gateway into the agent's tools.",
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Wire the shared muster gateway into the agent's tools."
                 },
                 "serverRef": {
-                    "description": "Reference to the admin-owned RemoteMCPServer.",
                     "type": "object",
+                    "description": "Reference to the admin-owned RemoteMCPServer.",
+                    "additionalProperties": false,
                     "properties": {
                         "apiGroup": {
-                            "description": "API group of the referenced resource.",
-                            "type": "string"
+                            "type": "string",
+                            "description": "API group of the referenced resource."
                         },
                         "kind": {
-                            "description": "Kind of the referenced resource.",
-                            "type": "string"
+                            "type": "string",
+                            "description": "Kind of the referenced resource."
                         },
                         "name": {
-                            "description": "Name of the referenced resource.",
-                            "type": "string"
+                            "type": "string",
+                            "description": "Name of the referenced resource."
                         },
                         "namespace": {
-                            "description": "Namespace of the referenced resource.",
-                            "type": "string"
+                            "type": "string",
+                            "description": "Namespace of the referenced resource."
                         }
-                    },
-                    "additionalProperties": false
+                    }
                 },
                 "stsWellKnownUri": {
-                    "description": "OAuth authorization server discovery URI of muster's STS. Leave empty (the default): under the platform's dex-only trust model (muster does not sign tokens) the propagated caller token is presented directly as the MCP bearer and no exchange happens — a configured URI would attempt an RFC 8693 exchange that muster refuses. Set only against a muster that runs in JWT mode; its in-cluster discovery URL is http://muster.agentic-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server",
-                    "type": "string"
+                    "type": "string",
+                    "description": "OAuth authorization server discovery URI of muster's STS. Leave empty (the default): under the platform's dex-only trust model (muster does not sign tokens) the propagated caller token is presented directly as the MCP bearer and no exchange happens — a configured URI would attempt an RFC 8693 exchange that muster refuses. Set only against a muster that runs in JWT mode; its in-cluster discovery URL is http://muster.agentic-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server"
                 },
                 "toolNames": {
-                    "description": "Set to narrow the tool surface; leave empty for all tools. muster's tools are dynamic and no toolNames means no tool filter — the agent gets every tool the gateway exposes.",
                     "type": "array",
+                    "description": "Set to narrow the tool surface; leave empty for all tools. muster's tools are dynamic and no toolNames means no tool filter — the agent gets every tool the gateway exposes.",
                     "items": {
                         "type": "string"
                     }
                 }
-            },
-            "additionalProperties": false
+            }
         },
         "nodeSelector": {
-            "description": "Node selector for agent pod scheduling.",
             "type": "object",
+            "description": "Node selector for agent pod scheduling.",
             "additionalProperties": {
                 "type": "string"
             }
         },
         "replicas": {
-            "description": "Number of agent pod replicas.",
             "type": "integer",
+            "description": "Number of agent pod replicas.",
             "minimum": 0
         },
         "resources": {
-            "description": "Compute resources of the agent deployment.",
             "type": "object",
+            "description": "Compute resources of the agent deployment.",
+            "additionalProperties": true,
             "properties": {
                 "limits": {
-                    "description": "Resource limits.",
                     "type": "object",
+                    "description": "Resource limits.",
+                    "additionalProperties": true,
                     "properties": {
                         "cpu": {
-                            "description": "CPU limit.",
                             "type": [
                                 "string",
                                 "number"
-                            ]
+                            ],
+                            "description": "CPU limit."
                         },
                         "memory": {
-                            "description": "Memory limit.",
                             "type": [
                                 "string",
                                 "number"
-                            ]
+                            ],
+                            "description": "Memory limit."
                         }
-                    },
-                    "additionalProperties": true
+                    }
                 },
                 "requests": {
-                    "description": "Resource requests.",
                     "type": "object",
+                    "description": "Resource requests.",
+                    "additionalProperties": true,
                     "properties": {
                         "cpu": {
-                            "description": "CPU request.",
                             "type": [
                                 "string",
                                 "number"
-                            ]
+                            ],
+                            "description": "CPU request."
                         },
                         "memory": {
-                            "description": "Memory request.",
                             "type": [
                                 "string",
                                 "number"
-                            ]
+                            ],
+                            "description": "Memory request."
                         }
-                    },
-                    "additionalProperties": true
+                    }
                 }
-            },
-            "additionalProperties": true
+            }
         },
         "skills": {
-            "description": "kagent-native skills, pulled by the skills-init container and mounted under /skills. Prefer immutable refs (image tag/digest, git tag/SHA) in long-lived installs; git branches are a development convenience.",
             "type": "object",
+            "description": "kagent-native skills, pulled by the skills-init container and mounted under /skills. Prefer immutable refs (image tag/digest, git tag/SHA) in long-lived installs; git branches are a development convenience.",
+            "additionalProperties": false,
             "properties": {
                 "gitRefs": {
-                    "description": "Git repository references for development iteration.",
-                    "type": "array"
+                    "type": "array",
+                    "description": "Git repository references for development iteration."
                 },
                 "refs": {
-                    "description": "OCI skill image references, e.g. [\"registry.example.io/skills/runbooks:1.4.0\"]",
                     "type": "array",
+                    "description": "OCI skill image references, e.g. [\"registry.example.io/skills/runbooks:1.4.0\"]",
                     "items": {
                         "type": "string"
                     }
                 }
-            },
-            "additionalProperties": false
+            }
         },
         "tolerations": {
-            "description": "Tolerations for agent pod scheduling.",
-            "type": "array"
+            "type": "array",
+            "description": "Tolerations for agent pod scheduling."
         }
-    },
-    "additionalProperties": false
+    }
 }
