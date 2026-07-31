@@ -54,6 +54,15 @@ skills:
   # @schema type:array
   # -- Git repository references for development iteration.
   gitRefs: []
+  # -- Auth for private `gitRefs` repositories. Applies to all gitRefs
+  # entries; the chart never creates this Secret. Leave name empty for
+  # public repositories.
+  gitAuthSecretRef:
+    # @schema type:string
+    # -- Name of a Secret in the agent's namespace. Supply key `token` for
+    # an HTTPS PAT/deploy token, or a `kubernetes.io/ssh-auth` secret (key
+    # `ssh-privatekey`) for SSH deploy-key auth.
+    name: ""
 
 # -- The platform's shared muster gateway, referenced cross-namespace. The
 # RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this

@@ -201,6 +201,17 @@
             "description": "kagent-native skills, pulled by the skills-init container and mounted under /skills. Prefer immutable refs (image tag/digest, git tag/SHA) in long-lived installs; git branches are a development convenience.",
             "type": "object",
             "properties": {
+                "gitAuthSecretRef": {
+                    "description": "Auth for private `gitRefs` repositories. Applies to all gitRefs entries; the chart never creates this Secret. Leave name empty for public repositories.",
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "description": "Name of a Secret in the agent's namespace. Supply key `token` for an HTTPS PAT/deploy token, or a `kubernetes.io/ssh-auth` secret (key `ssh-privatekey`) for SSH deploy-key auth.",
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": false
+                },
                 "gitRefs": {
                     "description": "Git repository references for development iteration.",
                     "type": "array"

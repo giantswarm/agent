@@ -61,6 +61,10 @@ skills:
   gitRefs:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+  {{- with .Values.skills.gitAuthSecretRef.name }}
+  gitAuthSecretRef:
+    name: {{ . | quote }}
+  {{- end }}
 {{- end }}
 declarative:
   runtime: {{ .Values.agent.runtime }}
