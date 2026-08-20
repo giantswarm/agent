@@ -3,7 +3,7 @@
 # agent chart
 
 The generic Helm chart for creating [kagent](https://kagent.dev) agents on the
-Giant Swarm agentic platform. **One chart release = one agent**: the chart
+Giant Swarm Agent Platform. **One chart release = one agent**: the chart
 renders a single `Agent` custom resource (`kagent.dev/v1alpha2`) from a small,
 curated values surface.
 
