@@ -1,6 +1,6 @@
 # agent
 
-Create a kagent agent on the Giant Swarm agentic platform from a small, curated values surface. One chart release renders exactly one Agent custom resource; model configuration, credentials and the muster gateway are platform-admin owned and only referenced by name.
+Create a kagent agent on the Giant Swarm Agent Platform from a small, curated values surface. One chart release renders exactly one Agent custom resource; model configuration, credentials and the muster gateway are platform-admin owned and only referenced by name.
 
 **Homepage:** <https://github.com/giantswarm/agent>
 
