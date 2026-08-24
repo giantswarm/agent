@@ -49,6 +49,37 @@
                 "type": "string"
             }
         },
+        "baseDomain": {
+            "type": "string"
+        },
+        "bootstrapMode": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "chartOperator": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "ciliumNetworkPolicy": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "cluster": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "clusterCA": {
+            "type": "string"
+        },
+        "clusterCIDR": {
+            "type": "string"
+        },
+        "clusterDNSIP": {
+            "type": "string"
+        },
+        "clusterID": {
+            "type": "string"
+        },
         "extraAgentSpec": {
             "type": "object",
             "description": "Escape hatch: deep-merged over the curated Agent spec (this wins), so any kagent Agent field is reachable when the curated surface omits something.",
@@ -57,6 +88,9 @@
         "extraTools": {
             "type": "array",
             "description": "Additional raw kagent tool entries appended after the muster gateway."
+        },
+        "gcpProject": {
+            "type": "string"
         },
         "global": {
             "type": [
@@ -144,6 +178,9 @@
                 "type": "string"
             }
         },
+        "provider": {
+            "type": "string"
+        },
         "replicas": {
             "type": "integer",
             "description": "Number of agent pod replicas.",
@@ -226,6 +263,9 @@
                     }
                 }
             }
+        },
+        "subscriptionID": {
+            "type": "string"
         },
         "tolerations": {
             "type": "array",
