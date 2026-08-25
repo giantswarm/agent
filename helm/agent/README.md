@@ -26,16 +26,16 @@ Create a kagent agent on the Giant Swarm Agent Platform from a small, curated va
 | skills.gitRefs | list | `[]` | Git repository references for development iteration. |
 | skills.gitAuthSecretRef | object | `{"name":""}` | Auth for private `gitRefs` repositories. Applies to all gitRefs entries; the chart never creates this Secret. Leave name empty for public repositories. |
 | skills.gitAuthSecretRef.name | string | `""` | Name of a Secret in the agent's namespace. Supply key `token` for an HTTPS PAT/deploy token, or a `kubernetes.io/ssh-auth` secret (key `ssh-privatekey`) for SSH deploy-key auth. |
-| muster | object | `{"allowedHeaders":["authorization"],"enabled":true,"serverRef":{"apiGroup":"kagent.dev","kind":"RemoteMCPServer","name":"muster","namespace":"agentic-platform"},"stsWellKnownUri":"","toolNames":[]}` | The platform's shared muster gateway, referenced cross-namespace. The RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this agent's namespace. |
+| muster | object | `{"allowedHeaders":["authorization"],"enabled":true,"serverRef":{"apiGroup":"kagent.dev","kind":"RemoteMCPServer","name":"muster","namespace":"agent-platform"},"stsWellKnownUri":"","toolNames":[]}` | The platform's shared muster gateway, referenced cross-namespace. The RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this agent's namespace. |
 | muster.enabled | bool | `true` | Wire the shared muster gateway into the agent's tools. |
-| muster.serverRef | object | `{"apiGroup":"kagent.dev","kind":"RemoteMCPServer","name":"muster","namespace":"agentic-platform"}` | Reference to the admin-owned RemoteMCPServer. |
+| muster.serverRef | object | `{"apiGroup":"kagent.dev","kind":"RemoteMCPServer","name":"muster","namespace":"agent-platform"}` | Reference to the admin-owned RemoteMCPServer. |
 | muster.serverRef.kind | string | `"RemoteMCPServer"` | Kind of the referenced resource. |
 | muster.serverRef.apiGroup | string | `"kagent.dev"` | API group of the referenced resource. |
 | muster.serverRef.name | string | `"muster"` | Name of the referenced resource. |
-| muster.serverRef.namespace | string | `"agentic-platform"` | Namespace of the referenced resource. |
+| muster.serverRef.namespace | string | `"agent-platform"` | Namespace of the referenced resource. |
 | muster.allowedHeaders | list | `["authorization"]` | HTTP headers forwarded to the gateway. |
 | muster.toolNames | list | `[]` | Set to narrow the tool surface; leave empty for all tools. muster's tools are dynamic and no toolNames means no tool filter — the agent gets every tool the gateway exposes. |
-| muster.stsWellKnownUri | string | `""` | OAuth authorization server discovery URI of muster's STS. Leave empty (the default): under the platform's dex-only trust model (muster does not sign tokens) the propagated caller token is presented directly as the MCP bearer and no exchange happens — a configured URI would attempt an RFC 8693 exchange that muster refuses. Set only against a muster that runs in JWT mode; its in-cluster discovery URL is http://muster.agentic-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server |
+| muster.stsWellKnownUri | string | `""` | OAuth authorization server discovery URI of muster's STS. Leave empty (the default): under the platform's dex-only trust model (muster does not sign tokens) the propagated caller token is presented directly as the MCP bearer and no exchange happens — a configured URI would attempt an RFC 8693 exchange that muster refuses. Set only against a muster that runs in JWT mode; its in-cluster discovery URL is http://muster.agent-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server |
 | extraTools | list | `[]` | Additional raw kagent tool entries appended after the muster gateway. |
 | replicas | int | `1` | Number of agent pod replicas. |
 | resources | object | `{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Compute resources of the agent deployment. |

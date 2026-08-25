@@ -84,7 +84,7 @@ muster:
     name: muster
     # @schema type:string
     # -- Namespace of the referenced resource.
-    namespace: agentic-platform
+    namespace: agent-platform
   # @schema type:array;item:string
   # -- HTTP headers forwarded to the gateway.
   allowedHeaders:
@@ -101,7 +101,7 @@ muster:
   # bearer and no exchange happens — a configured URI would attempt an
   # RFC 8693 exchange that muster refuses. Set only against a muster that
   # runs in JWT mode; its in-cluster discovery URL is
-  # http://muster.agentic-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server
+  # http://muster.agent-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server
   stsWellKnownUri: ""
 
 # @schema type:array
