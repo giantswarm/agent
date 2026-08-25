@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- changed: `muster.serverRef.namespace` defaults to `agent-platform` instead of `agentic-platform`, and the in-cluster muster discovery URL named in the `muster.stsWellKnownUri` documentation follows. Every management cluster now runs the platform in `agent-platform` (giantswarm#36869). Deployments that set the namespace explicitly are unaffected.
 - changed: chart description now names the product "Giant Swarm Agent Platform" (renamed from "agentic platform").
 - added: `skills.gitAuthSecretRef.name` value, rendered into the Agent's `spec.skills.gitAuthSecretRef` so `skills.gitRefs` can point at private git repositories. The chart never creates the referenced Secret — supply key `token` for HTTPS PAT/deploy-token auth, or a `kubernetes.io/ssh-auth` secret (key `ssh-privatekey`) for SSH deploy-key auth. Applies to all `gitRefs` entries.
 - added: `agent.iconUrl` value, rendered into the Agent's `spec.iconUrl` (surfaced on the A2A AgentCard) so the agent's avatar can be set at creation time.
