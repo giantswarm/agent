@@ -1,13 +1,21 @@
-# app-test-suite (ATS >= 1.0) config. Consumed by the generated
-# `run-tests-with-ats` CircleCI job (execute-chart-tests), which creates the
-# kind cluster and hands ATS its kubeconfig.
-
-# Test execution is skipped for now: the chart renders exactly one kagent
-# Agent CR, so `helm install` on a bare kind cluster fails on the missing
-# CRD. ATS 1.x can bootstrap extra CRDs before the deploy (`cluster-crds`),
-# and the smoke test under tests/ats is written against that contract
-# (ATS_RELEASE_* env vars). Same approach as giantswarm/kagent.
-# @TODO: remove `smoke` from skip-steps and add
-#   cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent/v0.1.25/helm/kagent/crds/kagent.dev/kagent.dev_agents.yaml
-# once that first real run is validated.
-skip-steps: [smoke,functional,upgrade]
+# app-test-suite (ATS >= 1.0) config, consumed by the generated
+# `run-tests-with-ats` CircleCI job (execute-chart-tests). The job creates the
+# kind cluster and hands ATS its kubeconfig; helm and kubectl come with the
+# ATS image.
+#
+# Smoke: the chart renders exactly one kagent Agent CR and nothing else, so
+# the bare kind cluster needs the kagent Agent CRD before ATS runs
+# `helm upgrade --install --wait`. `cluster-crds` is applied with
+# `kubectl apply --server-side` before the deploy (it replaces the image's
+# default CRD bundle, which this chart does not need). The CRD is pinned to a
+# giantswarm/kagent release tag: kagent.dev/v1alpha2 Agent is what the chart
+# renders, and upstream kagent has started removing v1alpha2 on its main
+# branch, so a tag keeps the smoke on the schema the platform ships. Bump it
+# with the platform's kagent version. tests/ats asserts that the release's
+# Agent exists and was accepted by that schema (no kagent controller runs on
+# the kind cluster). Needs app-test-suite >= 1.0.3, which waits for the
+# applied CRDs to be Established before the deploy.
+#
+# functional and upgrade stay skipped: there is no second scenario yet.
+cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent/v0.1.42/helm/kagent/crds/kagent.dev/kagent.dev_agents.yaml
+skip-steps: [functional,upgrade]

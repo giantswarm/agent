@@ -19,9 +19,8 @@ def test_agent_cr_created(kube_cluster: Cluster) -> None:
     here -- acceptance by the API server is the assertion, not
     reconciliation.
 
-    Written against the post-0.15.0 ATS contract (cluster-crds option,
-    ATS_RELEASE_* env vars); skipped via skip-steps in .ats/main.yaml until
-    dats.sh ships that release.
+    Written against the ATS 1.x contract (cluster-crds option, ATS_RELEASE_*
+    env vars, docs/TEST_CONTRACT.md in giantswarm/app-test-suite).
     """
     release_name = os.environ["ATS_RELEASE_NAME"]
     namespace = os.environ.get("ATS_RELEASE_NAMESPACE", "default")
