@@ -45,9 +45,32 @@ labels:
 
 The technical resource name defaults to the Helm release name. By default the
 agent is wired to the platform's shared muster gateway with **all** of its
-(dynamic) tools — `toolNames` is deliberately omitted, since no tool filter
-means every tool the gateway exposes. Set `muster.toolNames` to narrow the
-surface.
+(dynamic) tools — implicit full access to everything the gateway exposes to
+the invoking human. Declare a **toolset** to compose the agent with a subset:
+
+```yaml
+toolset:
+  - preset:read-only            # a preset muster knows (built in: read-only, none, full;
+  - workflow:incident-triage    #   the platform ships infrastructure and agent-platform)
+  - server:mcp-kubernetes       # every tool of one MCP server
+  - tool:x_mcp-prometheus_query # one exposed tool
+```
+
+The chart renders the selectors as the static `X-Muster-Toolset` header on
+the muster tool entry (`spec.declarative.tools[].headersFrom`, joined by
+`,`); muster resolves it on every request, so the agent's meta-tools list
+and call only what the toolset selects. Exactly `["preset:none"]` renders
+**no** muster tool entry at all — a chat-only agent. An empty list fails the
+render (say `preset:none`), more than 32 inline selectors fail (define a
+preset), and `toolset:<name>` is reserved. Leaving `toolset` unset keeps
+today's render byte for byte. Composition, not authorization: the human's
+identity and the backends' own authorization remain the boundary. The plan
+behind it is the
+[Agent Tool Access PRD](https://github.com/giantswarm/bumblebee-plans/blob/main/agent-tool-access/PRD.md).
+
+`muster.toolNames` still exists and does what kagent makes of it: it filters
+muster's *meta-tools* (`list_tools`, `call_tool`, ...), not the tools behind
+the gateway — a toolset is the way to narrow those.
 
 ### Values
 

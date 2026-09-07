@@ -1,0 +1,42 @@
+# Repo-owned additions to the generated .circleci/workflows.yml. The setup
+# workflow in config.yml deep-merges this file into it at pipeline runtime;
+# devctl never touches it.
+#
+#   - chart-test: helm lint plus the helm-unittest render suites in
+#     helm/agent/tests/ (what the Agent renders from the values: the golden
+#     default render, the toolset header, the preset:none omission and the
+#     render failures for an empty or oversized toolset). The generated jobs
+#     only package the chart (build-chart) and deploy it onto kind
+#     (execute-chart-tests); the unittest plugin is not in the architect
+#     images, so this job runs in a plain container with a pinned helm.
+version: 2.1
+
+jobs:
+  chart-test:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    environment:
+      HELM_VERSION: v3.21.4
+    steps:
+      - checkout
+      - run:
+          name: Install helm
+          command: |
+            set -euxo pipefail
+            curl -sSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" | tar -xz -C /tmp
+            sudo install -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm
+            helm version --short
+      - run:
+          name: Run chart tests
+          command: make helm-test
+
+workflows:
+  build:
+    jobs:
+    # Independent of build-chart: a render regression is reported without
+    # waiting for the package + kind deploy. Same tag filter as the other jobs.
+    - chart-test:
+        filters:
+          tags:
+            only: /^v.*/
