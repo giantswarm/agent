@@ -41,9 +41,65 @@ app.kubernetes.io/instance: {{ .Release.Name | quote }}
 {{- end -}}
 
 {{/*
+Validate the toolset: a list of selector strings, each preset:<name>,
+server:<name>, workflow:<name> or tool:<name>. Unset means implicit full
+access (no header); an empty list is refused so it can never silently mean
+full access; more than 32 selectors is refused (define a preset instead);
+toolset:<name> is reserved for shared toolsets; label: exists only inside
+presets. Fails the render with the offending selector.
+*/}}
+{{- define "agent.toolset.validate" -}}
+{{- $ts := .Values.toolset -}}
+{{- if not (kindIs "invalid" $ts) -}}
+  {{- if not (kindIs "slice" $ts) -}}
+    {{- fail (printf "toolset must be a list of selector strings, got %s" (kindOf $ts)) -}}
+  {{- end -}}
+  {{- if eq (len $ts) 0 -}}
+    {{- fail "toolset is empty: an agent without tools declares toolset: [\"preset:none\"]; leave toolset unset for implicit full access to everything the gateway exposes" -}}
+  {{- end -}}
+  {{- if gt (len $ts) 32 -}}
+    {{- fail (printf "toolset has %d selectors, above the inline cap of 32: define a preset (muster toolsetPresets) and select it with preset:<name>" (len $ts)) -}}
+  {{- end -}}
+  {{- range $ts -}}
+    {{- if not (kindIs "string" .) -}}
+      {{- fail (printf "toolset selector %v must be a string" .) -}}
+    {{- end -}}
+    {{- if hasPrefix "toolset:" . -}}
+      {{- fail (printf "toolset selector %q: toolset:<name> is reserved for shared toolsets" .) -}}
+    {{- end -}}
+    {{- if hasPrefix "label:" . -}}
+      {{- fail (printf "toolset selector %q: label: selectors are allowed inside presets only" .) -}}
+    {{- end -}}
+    {{- if not (regexMatch `^(preset|server|workflow|tool):[^\s,]+$` .) -}}
+      {{- fail (printf "toolset selector %q is invalid: expected preset:<name>, server:<name>, workflow:<name> or tool:<name> (exact name, no whitespace or commas)" .) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+"true" when the toolset is exactly ["preset:none"]: the agent has no tools,
+so the muster tool entry is omitted entirely.
+*/}}
+{{- define "agent.toolset.isNone" -}}
+{{- $ts := .Values.toolset -}}
+{{- if and (kindIs "slice" $ts) (eq (len $ts) 1) (eq (index $ts 0) "preset:none") -}}true{{- end -}}
+{{- end -}}
+
+{{/*
+The X-Muster-Toolset header value: the selectors joined by "," (no spaces).
+Empty when the toolset is unset.
+*/}}
+{{- define "agent.toolset.header" -}}
+{{- if kindIs "slice" .Values.toolset -}}{{ join "," .Values.toolset }}{{- end -}}
+{{- end -}}
+
+{{/*
 The curated Agent spec built from the values contract.
 */}}
 {{- define "agent.curatedSpec" -}}
+{{- include "agent.toolset.validate" . -}}
+{{- $musterTool := and .Values.muster.enabled (not (include "agent.toolset.isNone" .)) -}}
 type: Declarative
 {{- with .Values.agent.description }}
 description: {{ . | quote }}
@@ -71,10 +127,15 @@ declarative:
   modelConfig: {{ .Values.modelConfig.name }}
   systemMessage: |-
     {{- .Values.agent.systemMessage | nindent 4 }}
-  {{- if or .Values.muster.enabled .Values.extraTools }}
+  {{- if or $musterTool .Values.extraTools }}
   tools:
-    {{- if .Values.muster.enabled }}
+    {{- if $musterTool }}
     - type: McpServer
+      {{- with include "agent.toolset.header" . }}
+      headersFrom:
+        - name: X-Muster-Toolset
+          value: {{ . | quote }}
+      {{- end }}
       mcpServer:
         kind: {{ .Values.muster.serverRef.kind }}
         apiGroup: {{ .Values.muster.serverRef.apiGroup }}

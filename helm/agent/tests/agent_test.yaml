@@ -1,0 +1,299 @@
+# Render tests for the one resource the chart produces: the kagent Agent.
+#
+# Run with: make helm-test (helm unittest helm/agent). The chart-test CircleCI
+# job runs the same target on every PR (.circleci/custom.yml).
+#
+# The default-render snapshot in __snapshot__/ is the golden file: it was
+# recorded from the chart BEFORE the toolset value existed, so an unset
+# toolset renders byte-identically to the previous release. Update it only
+# on purpose (make helm-unittest-update) and say so in the PR.
+suite: agent
+templates:
+  - templates/agent.yaml
+release:
+  name: demo
+  namespace: demo-ns
+tests:
+  - it: renders the default values exactly as the previous release did (golden)
+    asserts:
+      - matchSnapshot: {}
+      - notExists:
+          path: spec.declarative.tools[0].headersFrom
+
+  # toolset -> X-Muster-Toolset header on the muster tool entry
+  # (kagent Agent spec.declarative.tools[].headersFrom, a sibling of mcpServer).
+  - it: renders the toolset as the X-Muster-Toolset header on the muster tool entry
+    set:
+      toolset:
+        - preset:read-only
+        - workflow:incident-triage
+    asserts:
+      - lengthEqual:
+          path: spec.declarative.tools
+          count: 1
+      - equal:
+          path: spec.declarative.tools[0].type
+          value: McpServer
+      - equal:
+          path: spec.declarative.tools[0].mcpServer.name
+          value: muster
+      - equal:
+          path: spec.declarative.tools[0].headersFrom
+          value:
+            - name: X-Muster-Toolset
+              value: preset:read-only,workflow:incident-triage
+      - notExists:
+          path: spec.declarative.tools[0].mcpServer.headersFrom
+
+  - it: accepts every selector kind and joins them with a comma and no spaces
+    set:
+      toolset:
+        - preset:full
+        - server:mcp-kubernetes
+        - workflow:incident-triage
+        - tool:x_mcp-kubernetes_get_pods
+        - tool:core_service_list
+    asserts:
+      - equal:
+          path: spec.declarative.tools[0].headersFrom[0].value
+          value: preset:full,server:mcp-kubernetes,workflow:incident-triage,tool:x_mcp-kubernetes_get_pods,tool:core_service_list
+
+  - it: renders 32 selectors (the inline cap)
+    set:
+      toolset:
+        - tool:t01
+        - tool:t02
+        - tool:t03
+        - tool:t04
+        - tool:t05
+        - tool:t06
+        - tool:t07
+        - tool:t08
+        - tool:t09
+        - tool:t10
+        - tool:t11
+        - tool:t12
+        - tool:t13
+        - tool:t14
+        - tool:t15
+        - tool:t16
+        - tool:t17
+        - tool:t18
+        - tool:t19
+        - tool:t20
+        - tool:t21
+        - tool:t22
+        - tool:t23
+        - tool:t24
+        - tool:t25
+        - tool:t26
+        - tool:t27
+        - tool:t28
+        - tool:t29
+        - tool:t30
+        - tool:t31
+        - tool:t32
+    asserts:
+      - matchRegex:
+          path: spec.declarative.tools[0].headersFrom[0].value
+          pattern: ^tool:t01,(tool:t[0-9]{2},){30}tool:t32$
+
+  - it: leaves muster.toolNames untouched next to the toolset
+    set:
+      toolset:
+        - preset:read-only
+      muster:
+        toolNames:
+          - list_tools
+          - call_tool
+    asserts:
+      - equal:
+          path: spec.declarative.tools[0].mcpServer.toolNames
+          value:
+            - list_tools
+            - call_tool
+      - equal:
+          path: spec.declarative.tools[0].headersFrom[0].value
+          value: preset:read-only
+
+  - it: keeps the token-propagation env and appends extraTools after the muster entry
+    set:
+      toolset:
+        - preset:read-only
+      extraTools:
+        - type: McpServer
+          mcpServer:
+            kind: RemoteMCPServer
+            apiGroup: kagent.dev
+            name: other
+    asserts:
+      - lengthEqual:
+          path: spec.declarative.tools
+          count: 2
+      - equal:
+          path: spec.declarative.tools[0].mcpServer.name
+          value: muster
+      - equal:
+          path: spec.declarative.tools[1].mcpServer.name
+          value: other
+      - notExists:
+          path: spec.declarative.tools[1].headersFrom
+      - contains:
+          path: spec.declarative.deployment.env
+          content:
+            name: KAGENT_PROPAGATE_TOKEN
+            value: "true"
+
+  # preset:none -> no muster tool entry
+  - it: renders no tools key at all for exactly ["preset:none"]
+    set:
+      toolset:
+        - preset:none
+    asserts:
+      - notExists:
+          path: spec.declarative.tools
+
+  - it: renders only the extraTools for ["preset:none"] with extraTools
+    set:
+      toolset:
+        - preset:none
+      extraTools:
+        - type: McpServer
+          mcpServer:
+            kind: RemoteMCPServer
+            apiGroup: kagent.dev
+            name: other
+    asserts:
+      - lengthEqual:
+          path: spec.declarative.tools
+          count: 1
+      - equal:
+          path: spec.declarative.tools[0].mcpServer.name
+          value: other
+
+  - it: keeps the muster entry when preset:none is combined with other selectors
+    set:
+      toolset:
+        - preset:none
+        - tool:x_mcp-kubernetes_get_pods
+    asserts:
+      - equal:
+          path: spec.declarative.tools[0].mcpServer.name
+          value: muster
+      - equal:
+          path: spec.declarative.tools[0].headersFrom[0].value
+          value: preset:none,tool:x_mcp-kubernetes_get_pods
+
+  - it: renders no muster entry and no header when muster is disabled
+    set:
+      toolset:
+        - preset:read-only
+      muster:
+        enabled: false
+    asserts:
+      - notExists:
+          path: spec.declarative.tools
+
+  # render failures
+  - it: fails on an empty toolset and points at preset:none
+    set:
+      toolset: []
+    asserts:
+      - failedTemplate:
+          errorPattern: 'toolset is empty.*preset:none'
+
+  - it: fails above 32 selectors and says to define a preset
+    set:
+      toolset:
+        - tool:t01
+        - tool:t02
+        - tool:t03
+        - tool:t04
+        - tool:t05
+        - tool:t06
+        - tool:t07
+        - tool:t08
+        - tool:t09
+        - tool:t10
+        - tool:t11
+        - tool:t12
+        - tool:t13
+        - tool:t14
+        - tool:t15
+        - tool:t16
+        - tool:t17
+        - tool:t18
+        - tool:t19
+        - tool:t20
+        - tool:t21
+        - tool:t22
+        - tool:t23
+        - tool:t24
+        - tool:t25
+        - tool:t26
+        - tool:t27
+        - tool:t28
+        - tool:t29
+        - tool:t30
+        - tool:t31
+        - tool:t32
+        - tool:t33
+    asserts:
+      - failedTemplate:
+          errorPattern: 'toolset has 33 selectors.*define a preset'
+
+  - it: "refuses toolset:<name> as reserved"
+    set:
+      toolset:
+        - preset:read-only
+        - toolset:foo
+    asserts:
+      - failedTemplate:
+          errorPattern: '"toolset:foo".*reserved for shared toolsets'
+
+  - it: "refuses an inline label: selector"
+    set:
+      toolset:
+        - label:agent-platform.giantswarm.io/tool-group=infrastructure
+    asserts:
+      - failedTemplate:
+          errorPattern: 'label: selectors are allowed inside presets only'
+
+  - it: refuses a selector without a known prefix
+    set:
+      toolset:
+        - read-only
+    asserts:
+      - failedTemplate:
+          errorPattern: '"read-only" is invalid.*preset:<name>, server:<name>, workflow:<name> or tool:<name>'
+
+  - it: refuses a selector with whitespace in the name
+    set:
+      toolset:
+        - "preset:read only"
+    asserts:
+      - failedTemplate:
+          errorPattern: '"preset:read only" is invalid'
+
+  - it: refuses a selector with a comma in the name
+    set:
+      toolset:
+        - "tool:a,tool:b"
+    asserts:
+      - failedTemplate:
+          errorPattern: '"tool:a,tool:b" is invalid'
+
+  - it: refuses a selector with an empty name
+    set:
+      toolset:
+        - "preset:"
+    asserts:
+      - failedTemplate:
+          errorPattern: '"preset:" is invalid'
+
+  - it: refuses a non-list toolset through the values schema
+    set:
+      toolset: preset:read-only
+    asserts:
+      - failedTemplate:
+          errorPattern: "toolset"

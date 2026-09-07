@@ -1,0 +1,42 @@
+renders the default values exactly as the previous release did (golden):
+  1: |
+    apiVersion: kagent.dev/v1alpha2
+    kind: Agent
+    metadata:
+      labels:
+        app: agent
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: agent
+        app.kubernetes.io/version: 0.0.0-dev
+        application.giantswarm.io/team: bumblebee
+        helm.sh/chart: agent-0.0.0-dev
+      name: demo
+      namespace: demo-ns
+    spec:
+      declarative:
+        deployment:
+          env:
+            - name: KAGENT_PROPAGATE_TOKEN
+              value: "true"
+          replicas: 1
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+        modelConfig: default-model-config
+        runtime: go
+        systemMessage: You are a helpful agent.
+        tools:
+          - mcpServer:
+              allowedHeaders:
+                - authorization
+              apiGroup: kagent.dev
+              kind: RemoteMCPServer
+              name: muster
+              namespace: agent-platform
+            type: McpServer
+      type: Declarative
