@@ -7,7 +7,8 @@ Expand the name of the chart.
 {{- end -}}
 
 {{/*
-Technical name of the agent. Defaults to the release name.
+Technical name of the agent: the AgentTemplate and its RemoteMCPServer.
+Defaults to the release name.
 */}}
 {{- define "agent.name" -}}
 {{- default .Release.Name .Values.agent.name | trunc 63 | trimSuffix "-" -}}
@@ -38,6 +39,55 @@ Selector labels
 {{- define "labels.selector" -}}
 app.kubernetes.io/name: {{ include "name" . | quote }}
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
+{{- end -}}
+
+{{/*
+Labels of every object the chart renders: the common set with .Values.labels
+merged over it (the extra labels win).
+*/}}
+{{- define "agent.labels" -}}
+{{- toYaml (mustMergeOverwrite (fromYaml (include "labels.common" .)) (deepCopy .Values.labels)) -}}
+{{- end -}}
+
+{{/*
+Labels of the AgentTemplate: the shared set plus the Harness admission label
+agent-platform.giantswarm.io/harness, valued by agent.harness. Extra labels
+merge over it, so a deliberately different admission label is still one value
+away.
+*/}}
+{{- define "agenttemplate.labels" -}}
+{{- $labels := dict "agent-platform.giantswarm.io/harness" .Values.agent.harness -}}
+{{- toYaml (mustMergeOverwrite $labels (fromYaml (include "agent.labels" .))) -}}
+{{- end -}}
+
+{{/*
+Labels of the RemoteMCPServer: the shared set plus the discovery opt-out
+kagent.dev/discovery=disabled unless muster.discovery.enabled is true. The
+opt-out is the chart's decision, so it wins over an extra label of the same
+name.
+*/}}
+{{- define "remotemcpserver.labels" -}}
+{{- $labels := fromYaml (include "agent.labels" .) -}}
+{{- if not .Values.muster.discovery.enabled -}}
+{{- $_ := set $labels "kagent.dev/discovery" "disabled" -}}
+{{- end -}}
+{{- toYaml $labels -}}
+{{- end -}}
+
+{{/*
+Annotations of the AgentTemplate: ui.giantswarm.io/display-name and
+ui.giantswarm.io/icon-url from agent.displayName / agent.iconUrl (when set),
+next to .Values.annotations. Empty when there is nothing to render.
+*/}}
+{{- define "agenttemplate.annotations" -}}
+{{- $annotations := deepCopy .Values.annotations -}}
+{{- with .Values.agent.displayName -}}
+{{- $_ := set $annotations "ui.giantswarm.io/display-name" . -}}
+{{- end -}}
+{{- with .Values.agent.iconUrl -}}
+{{- $_ := set $annotations "ui.giantswarm.io/icon-url" . -}}
+{{- end -}}
+{{- toYaml $annotations -}}
 {{- end -}}
 
 {{/*
@@ -79,7 +129,7 @@ presets. Fails the render with the offending selector.
 
 {{/*
 "true" when the toolset is exactly ["preset:none"]: the agent has no tools,
-so the muster tool entry is omitted entirely.
+so neither the RemoteMCPServer nor the muster binding is rendered.
 */}}
 {{- define "agent.toolset.isNone" -}}
 {{- $ts := .Values.toolset -}}
@@ -95,93 +145,97 @@ Empty when the toolset is unset.
 {{- end -}}
 
 {{/*
-The curated Agent spec built from the values contract.
+"true" when the agent is bound to muster: muster.enabled and the toolset is
+not exactly ["preset:none"]. Gates the RemoteMCPServer and the binding alike.
 */}}
-{{- define "agent.curatedSpec" -}}
+{{- define "agent.musterBinding" -}}
 {{- include "agent.toolset.validate" . -}}
-{{- $musterTool := and .Values.muster.enabled (not (include "agent.toolset.isNone" .)) -}}
-type: Declarative
-{{- with .Values.agent.description }}
-description: {{ . | quote }}
-{{- end }}
-{{- with .Values.agent.iconUrl }}
-iconUrl: {{ . | quote }}
-{{- end }}
-{{- if or .Values.skills.refs .Values.skills.gitRefs }}
-skills:
-  {{- with .Values.skills.refs }}
-  refs:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- with .Values.skills.gitRefs }}
-  gitRefs:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- with .Values.skills.gitAuthSecretRef.name }}
-  gitAuthSecretRef:
-    name: {{ . | quote }}
-  {{- end }}
-{{- end }}
-declarative:
-  runtime: {{ .Values.agent.runtime }}
-  modelConfig: {{ .Values.modelConfig.name }}
-  systemMessage: |-
-    {{- .Values.agent.systemMessage | nindent 4 }}
-  {{- if or $musterTool .Values.extraTools }}
-  tools:
-    {{- if $musterTool }}
-    - type: McpServer
-      {{- with include "agent.toolset.header" . }}
-      headersFrom:
-        - name: X-Muster-Toolset
-          value: {{ . | quote }}
-      {{- end }}
-      mcpServer:
-        kind: {{ .Values.muster.serverRef.kind }}
-        apiGroup: {{ .Values.muster.serverRef.apiGroup }}
-        name: {{ .Values.muster.serverRef.name }}
-        namespace: {{ .Values.muster.serverRef.namespace }}
-        {{- with .Values.muster.allowedHeaders }}
-        allowedHeaders:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-        {{- with .Values.muster.toolNames }}
-        toolNames:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-    {{- end }}
-    {{- with .Values.extraTools }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
-  {{- end }}
-  deployment:
-    replicas: {{ .Values.replicas }}
-    {{- if .Values.muster.enabled }}
-    env:
-      - name: KAGENT_PROPAGATE_TOKEN
-        value: "true"
-      {{- with .Values.muster.stsWellKnownUri }}
-      - name: STS_WELL_KNOWN_URI
-        value: {{ . | quote }}
-      {{- end }}
-    {{- end }}
-    {{- with .Values.resources }}
-    resources:
-      {{- toYaml . | nindent 6 }}
-    {{- end }}
-    {{- with .Values.nodeSelector }}
-    nodeSelector:
-      {{- toYaml . | nindent 6 }}
-    {{- end }}
-    {{- with .Values.tolerations }}
-    tolerations:
-      {{- toYaml . | nindent 6 }}
-    {{- end }}
+{{- if and .Values.muster.enabled (not (include "agent.toolset.isNone" .)) -}}true{{- end -}}
 {{- end -}}
 
 {{/*
-The final Agent spec: extraAgentSpec deep-merged over the curated spec,
-with the escape hatch winning on conflicts.
+Description of the agent's RemoteMCPServer: names the agent and its toolset.
+*/}}
+{{- define "remotemcpserver.description" -}}
+{{- $toolset := include "agent.toolset.header" . -}}
+{{- printf "muster MCP gateway of agent %s (%s)" (include "agent.name" .) (ternary (printf "toolset %s" $toolset) "implicit full access" (ne $toolset "")) -}}
+{{- end -}}
+
+{{/*
+Validate the skills beyond what the values schema can express: names are
+unique. Everything else (exactly one of git/oci, full commit id, digest-pinned
+image, relative path) is the schema's job. Fails the render naming the entry.
+*/}}
+{{- define "agent.skills.validate" -}}
+{{- $seen := dict -}}
+{{- range $i, $skill := .Values.skills -}}
+  {{- if hasKey $seen $skill.name -}}
+    {{- fail (printf "skills[%d].name %q is already used by skills[%v]: skill names must be unique" $i $skill.name (get $seen $skill.name)) -}}
+  {{- end -}}
+  {{- $_ := set $seen $skill.name $i -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+The AgentTemplate's spec.skills: every value entry {name, git|oci, path} as a
+{name, source: {git|oci, path}} item.
+*/}}
+{{- define "agent.skills" -}}
+{{- include "agent.skills.validate" . -}}
+{{- range .Values.skills }}
+- name: {{ .name | quote }}
+  source:
+    {{- with .git }}
+    git:
+      url: {{ .url | quote }}
+      commit: {{ .commit | quote }}
+    {{- end }}
+    {{- with .oci }}
+    oci: {{ . | quote }}
+    {{- end }}
+    {{- with .path }}
+    path: {{ . | quote }}
+    {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+The curated AgentTemplate spec built from the values contract.
+*/}}
+{{- define "agent.curatedSpec" -}}
+{{- with .Values.agent.description }}
+description: {{ . | quote }}
+{{- end }}
+modelConfig:
+  name: {{ .Values.modelConfig.name | quote }}
+systemPrompt: |-
+  {{- .Values.agent.systemMessage | nindent 2 }}
+{{- with .Values.skills }}
+skills:
+  {{- include "agent.skills" $ | nindent 2 }}
+{{- end }}
+{{- $muster := include "agent.musterBinding" . -}}
+{{- if or $muster .Values.extraTools }}
+tools:
+  {{- if $muster }}
+  - mcp:
+      server:
+        kind: RemoteMCPServer
+        name: {{ include "agent.name" . | quote }}
+      {{- with .Values.muster.tools }}
+      tools:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- end }}
+  {{- with .Values.extraTools }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+The final AgentTemplate spec: extraAgentSpec deep-merged over the curated
+spec, with the escape hatch winning on conflicts.
 */}}
 {{- define "agent.spec" -}}
 {{- $curated := fromYaml (include "agent.curatedSpec" .) -}}

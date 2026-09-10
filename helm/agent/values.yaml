@@ -1,108 +1,105 @@
 # yaml-language-server: $schema=values.schema.json
 # Default values for the agent chart.
 #
-# One chart release = one agent. The chart renders a single kagent Agent
-# custom resource. It never renders a ModelConfig, a Secret or the muster
-# RemoteMCPServer — those are platform-admin owned and referenced by name.
+# One chart release = one agent. The chart renders a kagent AgentTemplate
+# (kagent.dev/v1alpha3: what the agent is — prompt, model, skills, tools) and,
+# unless the agent is chat-only, one muster RemoteMCPServer named after the
+# agent that carries its toolset. How the agent runs is the platform's Harness,
+# which admits the template by label. The chart never renders a ModelConfig, a
+# Secret or a Harness — those are platform-owned and referenced by name.
 #
-# values.schema.json is generated from the # @schema annotations in this
-# file by the helm-schema pre-commit hook (losisin/helm-values-schema-json);
-# edit the annotations here, never the schema directly.
+# values.schema.json is generated from the # @schema annotations in this file
+# (and skill.schema.json for the skills entries) by the helm-schema pre-commit
+# hook (losisin/helm-values-schema-json); edit the annotations here, never the
+# schema directly.
 
 # -- Identity and prompt of the agent.
 agent:
   # @schema type:string;maxLength:63;pattern:^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-  # -- Technical resource name (DNS-1123). Defaults to the Helm release name.
+  # -- Technical resource name (DNS-1123) of the AgentTemplate and of its
+  # RemoteMCPServer. Defaults to the Helm release name.
   name: ""
   # @schema type:string;maxLength:63
   # -- Human-friendly name, Unicode allowed. Rendered as the
-  # ui.giantswarm.io/display-name annotation on the Agent. Size-limited so it
-  # cannot become a description.
+  # ui.giantswarm.io/display-name annotation on the AgentTemplate. Size-limited
+  # so it cannot become a description.
   displayName: ""
   # @schema type:string
-  # -- Rendered into the Agent's spec.description.
+  # -- Rendered into the AgentTemplate's spec.description.
   description: ""
   # @schema type:string
-  # -- Fully qualified URL of the agent's avatar icon. Rendered into the
-  # Agent's spec.iconUrl and surfaced on the A2A AgentCard. Populated by the
-  # Backstage agent-creation flow with the canonical avatar URL.
+  # -- Fully qualified URL of the agent's avatar icon. Rendered as the
+  # ui.giantswarm.io/icon-url annotation on the AgentTemplate (the template has
+  # no icon field); the Dev Portal reads it. Populated by the agent-creation
+  # flows with the canonical avatar URL.
   iconUrl: ""
   # @schema type:string;minLength:1
-  # -- The agent's system prompt.
+  # -- The agent's system prompt. Rendered into the AgentTemplate's
+  # spec.systemPrompt.
   systemMessage: |
     You are a helpful agent.
-  # @schema enum:[go, python]
-  # -- kagent runtime for the agent. Mirrors the Agent CRD's
-  # spec.declarative.runtime enum.
-  runtime: go
+  # @schema type:string;minLength:1;maxLength:63;pattern:^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+  # -- Name of the platform Harness that runs the agent. Rendered as the label
+  # `agent-platform.giantswarm.io/harness` on the AgentTemplate — the label the
+  # Harness's allowedAgentTemplates selector matches. The platform ships the
+  # `kagent` Harness (the Go ADK runtime); a template no Harness admits is
+  # created and never becomes Ready.
+  harness: kagent
 
-# -- Which platform-admin-provisioned ModelConfig the agent uses, referenced
-# by name. kagent resolves it in the agent's own namespace. The chart never
-# creates or mutates a ModelConfig, and tenants never handle LLM credentials.
+# -- Which platform-provisioned ModelConfig the agent uses, referenced by name.
+# kagent resolves it in the agent's own namespace. The chart never creates or
+# mutates a ModelConfig, and tenants never handle LLM credentials.
 modelConfig:
   # @schema type:string;minLength:1
-  # -- Name of the admin-provisioned ModelConfig in the agent's namespace.
+  # -- Name of the platform-provisioned ModelConfig in the agent's namespace.
+  # Rendered into the AgentTemplate's spec.modelConfig.name.
   name: default-model-config
 
-# -- kagent-native skills, pulled by the skills-init container and mounted
-# under /skills. Prefer immutable refs (image tag/digest, git tag/SHA) in
-# long-lived installs; git branches are a development convenience.
-skills:
-  # @schema type:array;item:string
-  # -- OCI skill image references, e.g. ["registry.example.io/skills/runbooks:1.4.0"]
-  refs: []
-  # @schema type:array
-  # -- Git repository references for development iteration.
-  gitRefs: []
-  # -- Auth for private `gitRefs` repositories. Applies to all gitRefs
-  # entries; the chart never creates this Secret. Leave name empty for
-  # public repositories.
-  gitAuthSecretRef:
-    # @schema type:string
-    # -- Name of a Secret in the agent's namespace. Supply key `token` for
-    # an HTTPS PAT/deploy token, or a `kubernetes.io/ssh-auth` secret (key
-    # `ssh-privatekey`) for SSH deploy-key auth.
-    name: ""
+# @schema type:array;itemRef:skill.schema.json;maxItems:50
+# -- (list) Agent skills, each pinned to an immutable source the Harness
+# materialises for the agent. An entry is `{name, git: {url, commit}, path}` —
+# a public http(s) git repository at a full 40- or 64-hex commit id, `path` the
+# skill's directory within the checkout — or `{name, oci: <ref@sha256:...>}`, a
+# digest-pinned image (`path` selects a directory within it). Rendered into the
+# AgentTemplate's spec.skills[] as `{name, source: {git | oci, path}}`. Names
+# are unique; exactly one of git and oci is set. A branch, a tag, a short SHA
+# or an OCI tag fails the render with a message naming the field (the CRD
+# refuses them at admission); the composers pin skills to a commit and re-pin
+# them on demand. Private repositories are not supported in 1.x.
+skills: []
 
-# -- The platform's shared muster gateway, referenced cross-namespace. The
-# RemoteMCPServer is admin-owned; its spec.allowedNamespaces must admit this
-# agent's namespace.
+# -- The platform's muster MCP gateway. Unless the agent is chat-only (toolset
+# exactly `["preset:none"]`) or `enabled` is false, the chart renders a
+# RemoteMCPServer named after the agent that points at muster and carries the
+# toolset header, and binds it into the AgentTemplate's tools.
 muster:
   # @schema type:boolean
-  # -- Wire the shared muster gateway into the agent's tools.
+  # -- Wire muster into the agent's tools: render the agent's RemoteMCPServer
+  # and bind it in the AgentTemplate.
   enabled: true
-  # -- Reference to the admin-owned RemoteMCPServer.
-  serverRef:
-    # @schema type:string
-    # -- Kind of the referenced resource.
-    kind: RemoteMCPServer
-    # @schema type:string
-    # -- API group of the referenced resource.
-    apiGroup: kagent.dev
-    # @schema type:string
-    # -- Name of the referenced resource.
-    name: muster
-    # @schema type:string
-    # -- Namespace of the referenced resource.
-    namespace: agent-platform
-  # @schema type:array;item:string
-  # -- HTTP headers forwarded to the gateway.
-  allowedHeaders:
-    - authorization
-  # @schema type:array;item:string
-  # -- Set to narrow the tool surface; leave empty for all tools. muster's
-  # tools are dynamic and no toolNames means no tool filter — the agent gets
-  # every tool the gateway exposes.
-  toolNames: []
-  # @schema type:string
-  # -- OAuth authorization server discovery URI of muster's STS. Leave empty
-  # (the default): under the platform's dex-only trust model (muster does not
-  # sign tokens) the propagated caller token is presented directly as the MCP
-  # bearer and no exchange happens — a configured URI would attempt an
-  # RFC 8693 exchange that muster refuses. Set only against a muster that
-  # runs in JWT mode; its in-cluster discovery URL is
-  # http://muster.agent-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server
-  stsWellKnownUri: ""
+  # @schema type:string;pattern:^https?://\S+$
+  # -- URL of muster's MCP endpoint, rendered into the RemoteMCPServer's
+  # spec.url. The default is the platform's in-cluster URL; set it for an
+  # installation whose muster is elsewhere.
+  url: http://muster.agent-platform.svc.cluster.local:8090/mcp
+  # @schema type:array;item:string;itemPattern:^\S+$;maxItems:50;uniqueItems:true
+  # -- Set to narrow the binding to a subset of muster's meta-tools
+  # (`list_tools`, `call_tool`, ...); leave empty to bind every tool. Rendered
+  # into the binding's `tools`. A toolset is the way to narrow the tools behind
+  # the gateway. A Harness enforces a partial selection only when it can
+  # discover the server's tools; with discovery off (the default) it may expose
+  # the whole server and report a warning in the template's
+  # status.harnesses[].warnings.
+  tools: []
+  # -- Tool discovery by the kagent controller against muster.
+  discovery:
+    # @schema type:boolean
+    # -- Let the kagent controller list muster's tools when it reconciles the
+    # RemoteMCPServer. Off by default: muster is an OAuth resource server and
+    # the controller holds no user token, so the chart labels the server
+    # `kagent.dev/discovery: disabled` and the agent resolves its tools at run
+    # time as the signed-in person. Turn on only for a muster without OAuth.
+    enabled: false
 
 # @schema type:[array, null];item:string
 # -- (list) The tools the agent is composed with: a list of selectors that muster
@@ -111,65 +108,38 @@ muster:
 # `^(preset|server|workflow|tool):[^\s,]+$`); at most 32 inline, define a
 # preset for more. `toolset:<name>` is reserved and refused; patterns,
 # excludes, the read-only predicate and `label:` exist only inside presets.
-# Rendered as the static `X-Muster-Toolset` header on the muster tool entry
-# (kagent `spec.declarative.tools[].headersFrom`, the selectors joined by
-# `,`). Exactly `["preset:none"]` renders NO muster tool entry at all, so a
-# chat-only agent pays no context for meta-tools; an empty list fails the
-# render (say `preset:none` instead). Unset (the default) renders no header
-# and the agent keeps today's implicit full access to everything the gateway
-# exposes to the invoking human. Built-in presets: `read-only`, `none`,
-# `full`; the platform charts ship `infrastructure` and `agent-platform`.
-# Composition, not authorization: the human's identity and the backends' own
-# authorization stay the boundary.
+# Rendered as the static `X-Muster-Toolset` header on the agent's
+# RemoteMCPServer (`spec.headersFrom`, the selectors joined by `,`). Exactly
+# `["preset:none"]` renders NO RemoteMCPServer and no muster binding at all, so
+# a chat-only agent pays no context for meta-tools; an empty list fails the
+# render (say `preset:none` instead). Unset (the default) renders no header and
+# the agent keeps implicit full access to everything the gateway exposes to
+# the invoking human. Built-in presets: `read-only`, `none`, `full`; the
+# platform charts ship `infrastructure` and `agent-platform`. Composition, not
+# authorization: the human's identity and the backends' own authorization stay
+# the boundary.
 # @default -- unset: implicit full access, renders no header
 toolset:
 
 # @schema type:array
-# -- Additional raw kagent tool entries appended after the muster gateway.
+# -- Additional raw kagent.dev/v1alpha3 tool bindings appended after the muster
+# binding: `{mcp: {server: {kind: RemoteMCPServer, name}, tools,
+# requireApproval}}` or `{agent: {name, description, templateRef: {name}}}`.
+# Servers and templates are referenced in the agent's own namespace.
 extraTools: []
 
-# @schema type:integer;minimum:0
-# -- Number of agent pod replicas.
-replicas: 1
-
-# @schema additionalProperties:true
-# -- Compute resources of the agent deployment.
-resources:
-  # @schema additionalProperties:true
-  # -- Resource requests.
-  requests:
-    # @schema type:[string, number]
-    # -- CPU request.
-    cpu: 100m
-    # @schema type:[string, number]
-    # -- Memory request.
-    memory: 256Mi
-  # @schema additionalProperties:true
-  # -- Resource limits.
-  limits:
-    # @schema type:[string, number]
-    # -- CPU limit.
-    cpu: "1"
-    # @schema type:[string, number]
-    # -- Memory limit.
-    memory: 512Mi
-
 # @schema type:object;additionalProperties:{"type":"string"}
-# -- Node selector for agent pod scheduling.
-nodeSelector: {}
-# @schema type:array
-# -- Tolerations for agent pod scheduling.
-tolerations: []
-
-# @schema type:object;additionalProperties:{"type":"string"}
-# -- Extra labels merged over the standard set, e.g. tenant/owner dimensions.
+# -- Extra labels merged over the standard set on both objects, e.g.
+# tenant/owner dimensions. They win over the standard set on the AgentTemplate.
 labels: {}
 # @schema type:object;additionalProperties:{"type":"string"}
-# -- Extra annotations merged next to the display-name annotation.
+# -- Extra annotations merged next to the display-name and icon-url
+# annotations on the AgentTemplate.
 annotations: {}
 
 # @schema type:object;additionalProperties:true
-# -- Escape hatch: deep-merged over the curated Agent spec (this wins), so
-# any kagent Agent field is reachable when the curated surface omits
-# something.
+# -- Escape hatch: deep-merged over the curated AgentTemplate spec (this
+# wins), so any kagent.dev/v1alpha3 AgentTemplate field is reachable when the
+# curated surface omits something. It reaches the AgentTemplate spec only —
+# never the RemoteMCPServer and never the Harness.
 extraAgentSpec: {}

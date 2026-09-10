@@ -1,0 +1,236 @@
+# Render tests for the agent's muster RemoteMCPServer (kagent.dev/v1alpha3):
+# the carrier of the toolset, named after the agent, in the agent's namespace.
+#
+# Run with: make helm-test (helm unittest helm/agent). The default-render
+# snapshot in __snapshot__/ is the golden file of the 1.0 contract; update it
+# only on purpose (make helm-unittest-update) and say so in the PR.
+suite: remotemcpserver
+templates:
+  - templates/remotemcpserver.yaml
+release:
+  name: demo
+  namespace: demo-ns
+tests:
+  - it: renders the default values (golden)
+    asserts:
+      - hasDocuments:
+          count: 1
+      - matchSnapshot: {}
+      - isAPIVersion:
+          of: kagent.dev/v1alpha3
+      - isKind:
+          of: RemoteMCPServer
+      - equal:
+          path: metadata.name
+          value: demo
+      - equal:
+          path: metadata.namespace
+          value: demo-ns
+      - equal:
+          path: metadata.labels["kagent.dev/discovery"]
+          value: disabled
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: demo
+      - notExists:
+          path: metadata.labels["agent-platform.giantswarm.io/harness"]
+      - equal:
+          path: spec.url
+          value: http://muster.agent-platform.svc.cluster.local:8090/mcp
+      - equal:
+          path: spec.protocol
+          value: STREAMABLE_HTTP
+      - equal:
+          path: spec.description
+          value: muster MCP gateway of agent demo (implicit full access)
+      - notExists:
+          path: spec.headersFrom
+
+  - it: never carries an Authorization header
+    set:
+      toolset:
+        - preset:read-only
+    asserts:
+      - notMatchRegexRaw:
+          pattern: '(?i)authorization'
+
+  - it: follows agent.name
+    set:
+      agent:
+        name: sre-assistant
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sre-assistant
+      - equal:
+          path: spec.description
+          value: muster MCP gateway of agent sre-assistant (implicit full access)
+
+  # toolset -> X-Muster-Toolset header in spec.headersFrom
+  - it: renders the toolset as the X-Muster-Toolset header
+    set:
+      toolset:
+        - preset:read-only
+        - workflow:incident-triage
+    asserts:
+      - equal:
+          path: spec.headersFrom
+          value:
+            - name: X-Muster-Toolset
+              value: preset:read-only,workflow:incident-triage
+      - equal:
+          path: spec.description
+          value: muster MCP gateway of agent demo (toolset preset:read-only,workflow:incident-triage)
+
+  - it: accepts every selector kind and joins them with a comma and no spaces
+    set:
+      toolset:
+        - preset:full
+        - server:mcp-kubernetes
+        - workflow:incident-triage
+        - tool:x_mcp-kubernetes_get_pods
+        - tool:core_service_list
+    asserts:
+      - equal:
+          path: spec.headersFrom[0].value
+          value: preset:full,server:mcp-kubernetes,workflow:incident-triage,tool:x_mcp-kubernetes_get_pods,tool:core_service_list
+
+  - it: renders 32 selectors (the inline cap)
+    set:
+      toolset:
+        - tool:t01
+        - tool:t02
+        - tool:t03
+        - tool:t04
+        - tool:t05
+        - tool:t06
+        - tool:t07
+        - tool:t08
+        - tool:t09
+        - tool:t10
+        - tool:t11
+        - tool:t12
+        - tool:t13
+        - tool:t14
+        - tool:t15
+        - tool:t16
+        - tool:t17
+        - tool:t18
+        - tool:t19
+        - tool:t20
+        - tool:t21
+        - tool:t22
+        - tool:t23
+        - tool:t24
+        - tool:t25
+        - tool:t26
+        - tool:t27
+        - tool:t28
+        - tool:t29
+        - tool:t30
+        - tool:t31
+        - tool:t32
+    asserts:
+      - matchRegex:
+          path: spec.headersFrom[0].value
+          pattern: ^tool:t01,(tool:t[0-9]{2},){30}tool:t32$
+
+  - it: keeps the server when preset:none is combined with other selectors
+    set:
+      toolset:
+        - preset:none
+        - tool:x_mcp-kubernetes_get_pods
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.headersFrom[0].value
+          value: preset:none,tool:x_mcp-kubernetes_get_pods
+
+  # omission
+  - it: renders no server for exactly ["preset:none"]
+    set:
+      toolset:
+        - preset:none
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders no server when muster is disabled
+    set:
+      toolset:
+        - preset:read-only
+      muster:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # muster values
+  - it: points at muster.url
+    set:
+      muster:
+        url: https://muster.example.com/mcp
+    asserts:
+      - equal:
+          path: spec.url
+          value: https://muster.example.com/mcp
+
+  - it: refuses a muster.url that is not http(s)
+    set:
+      muster:
+        url: muster.agent-platform.svc.cluster.local:8090/mcp
+    asserts:
+      - failedTemplate:
+          errorPattern: 'muster[./]url'
+
+  - it: drops the discovery opt-out label when muster.discovery.enabled is true
+    set:
+      muster:
+        discovery:
+          enabled: true
+    asserts:
+      - notExists:
+          path: metadata.labels["kagent.dev/discovery"]
+
+  - it: keeps muster.tools on the binding, not on the server
+    set:
+      muster:
+        tools:
+          - list_tools
+    asserts:
+      - notExists:
+          path: spec.tools
+
+  # isolation
+  - it: carries extra labels but keeps the discovery opt-out its own
+    set:
+      labels:
+        giantswarm.io/owner: sre-team
+        kagent.dev/discovery: enabled
+    asserts:
+      - equal:
+          path: metadata.labels["giantswarm.io/owner"]
+          value: sre-team
+      - equal:
+          path: metadata.labels["kagent.dev/discovery"]
+          value: disabled
+
+  - it: is not reached by annotations or extraAgentSpec
+    set:
+      agent:
+        displayName: SRE Assistant
+      annotations:
+        giantswarm.io/owner: sre-team
+      extraAgentSpec:
+        url: https://elsewhere.example.com/mcp
+        description: overridden
+    asserts:
+      - notExists:
+          path: metadata.annotations
+      - equal:
+          path: spec.url
+          value: http://muster.agent-platform.svc.cluster.local:8090/mcp
+      - equal:
+          path: spec.description
+          value: muster MCP gateway of agent demo (implicit full access)

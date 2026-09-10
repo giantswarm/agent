@@ -3,19 +3,32 @@
 # kind cluster and hands ATS its kubeconfig; helm and kubectl come with the
 # ATS image.
 #
-# Smoke: the chart renders exactly one kagent Agent CR and nothing else, so
-# the bare kind cluster needs the kagent Agent CRD before ATS runs
-# `helm upgrade --install --wait`. `cluster-crds` is applied with
-# `kubectl apply --server-side` before the deploy (it replaces the image's
-# default CRD bundle, which this chart does not need). The CRD is pinned to a
-# giantswarm/kagent release tag: kagent.dev/v1alpha2 Agent is what the chart
-# renders, and upstream kagent has started removing v1alpha2 on its main
-# branch, so a tag keeps the smoke on the schema the platform ships. Bump it
-# with the platform's kagent version. tests/ats asserts that the release's
-# Agent exists and was accepted by that schema (no kagent controller runs on
-# the kind cluster). Needs app-test-suite >= 1.0.3, which waits for the
-# applied CRDs to be Established before the deploy.
+# The chart renders two kagent.dev/v1alpha3 objects — the AgentTemplate and the
+# agent's muster RemoteMCPServer — so the bare kind cluster needs those two
+# CRDs before ATS runs `helm upgrade --install --wait`. `cluster-crds` is
+# applied with `kubectl apply --server-side -f` before the deploy and ATS waits
+# for the CRDs to be Established. ATS takes ONE value and hands it to kubectl
+# as is; kubectl's -f splits on commas, so the two URLs are joined by a comma
+# (no space). They are the plain-YAML CRD templates of the kagent line's
+# kagent-crds chart (giantswarm/kagent-upstream, helm/kagent-crds/templates/,
+# byte-identical to the controller's CRD bases) at the line's pinned COMMIT —
+# never the consumed branch, which is force-pushed on every re-pin. Bump: put
+# the line's release tag (or the new pin) into both URLs.
 #
-# functional and upgrade stay skipped: there is no second scenario yet.
-cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent/v0.1.42/helm/kagent/crds/kagent.dev/kagent.dev_agents.yaml
-skip-steps: [functional,upgrade]
+# Scenarios (tests/ats/):
+#   smoke       ATS installs the chart with values-smoke.yaml (display name,
+#               icon, a toolset, a narrowed binding, git and OCI skills, an
+#               extra binding). test_smoke.py asserts both objects exist, were
+#               accepted by the v1alpha3 schemas and carry the contract: the
+#               Harness label, the ui annotations, the X-Muster-Toolset header,
+#               the discovery opt-out, the binding. No controller runs.
+#   functional  test_chat_only.py installs a second release from the same
+#               archive with values-chat-only.yaml (toolset ["preset:none"])
+#               and asserts a template without a binding and no RemoteMCPServer.
+#
+# The smoke on the real runtime — the template reaching Ready on the platform
+# Harness in kind with Substrate — is a separate step (giantswarm/agent#26).
+# upgrade stays skipped: 0.x -> 1.0 is a breaking change of the values.
+cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/0ac524031db451634359df3081d7d5d08cea4c93/helm/kagent-crds/templates/kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/0ac524031db451634359df3081d7d5d08cea4c93/helm/kagent-crds/templates/kagent.dev_remotemcpservers.yaml
+app-tests-app-config-file: tests/ats/values-smoke.yaml
+skip-steps: [upgrade]

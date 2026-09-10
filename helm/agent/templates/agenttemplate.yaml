@@ -1,0 +1,13 @@
+apiVersion: kagent.dev/v1alpha3
+kind: AgentTemplate
+metadata:
+  name: {{ include "agent.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "agenttemplate.labels" . | nindent 4 }}
+  {{- with fromYaml (include "agenttemplate.annotations" .) }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- include "agent.spec" . | nindent 2 }}
