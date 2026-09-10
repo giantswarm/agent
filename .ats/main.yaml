@@ -11,9 +11,9 @@
 # as is; kubectl's -f splits on commas, so the two URLs are joined by a comma
 # (no space). They are the plain-YAML CRD templates of the kagent line's
 # kagent-crds chart (giantswarm/kagent-upstream, helm/kagent-crds/templates/,
-# byte-identical to the controller's CRD bases) at the line's pinned COMMIT —
-# never the consumed branch, which is force-pushed on every re-pin. Bump: put
-# the line's release tag (or the new pin) into both URLs.
+# byte-identical to the controller's CRD bases) at the line's RELEASE TAG
+# (v0.11.0-gs.1; a tag or a commit, never the consumed branch, which is
+# force-pushed on every re-pin). Bump: put the next release tag into both URLs.
 #
 # Scenarios (tests/ats/):
 #   smoke       ATS installs the chart with values-smoke.yaml (display name,
@@ -29,6 +29,6 @@
 # The smoke on the real runtime — the template reaching Ready on the platform
 # Harness in kind with Substrate — is a separate step (giantswarm/agent#26).
 # upgrade stays skipped: 0.x -> 1.0 is a breaking change of the values.
-cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/0ac524031db451634359df3081d7d5d08cea4c93/helm/kagent-crds/templates/kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/0ac524031db451634359df3081d7d5d08cea4c93/helm/kagent-crds/templates/kagent.dev_remotemcpservers.yaml
+cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.1/helm/kagent-crds/templates/kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.1/helm/kagent-crds/templates/kagent.dev_remotemcpservers.yaml
 app-tests-app-config-file: tests/ats/values-smoke.yaml
 skip-steps: [upgrade]
