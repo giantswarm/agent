@@ -21,7 +21,21 @@ from conftest import API_VERSION, HARNESS_LABEL
 logger = logging.getLogger(__name__)
 
 RELEASE = "ats-chat-only"
-VALUES = Path(__file__).resolve().parent / "values-chat-only.yaml"
+ATS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = ATS_DIR.parents[1]
+VALUES = ATS_DIR / "values-chat-only.yaml"
+
+
+def chart_archive() -> Path:
+    """The archive under test. ATS names it in ATS_CHART_PATH relative to its
+    working directory (the repository root, where the CI job copies the
+    archive), while pytest runs in tests/ats — so a relative name is resolved
+    against the root, or `helm install` reads it as a repository reference."""
+    archive = Path(os.environ["ATS_CHART_PATH"])
+    if not archive.is_absolute():
+        archive = REPO_ROOT / archive
+    assert archive.is_file(), f"chart archive not found: {archive}"
+    return archive
 
 
 def helm(*args: str) -> None:
@@ -33,7 +47,7 @@ def helm(*args: str) -> None:
 @pytest.fixture(scope="module")
 def chat_only_release(kube_cluster: Cluster) -> Iterator[str]:
     namespace = os.environ.get("ATS_RELEASE_NAMESPACE", "default")
-    helm("install", RELEASE, os.environ["ATS_CHART_PATH"], "--namespace", namespace, "--values", str(VALUES))
+    helm("install", RELEASE, str(chart_archive()), "--namespace", namespace, "--values", str(VALUES))
     try:
         yield namespace
     finally:
