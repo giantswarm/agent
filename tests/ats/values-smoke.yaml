@@ -1,9 +1,14 @@
-# Values of the ATS smoke release (.ats/main.yaml app-tests-app-config-file):
-# every field the chart maps, so admission by the v1alpha3 CRDs covers the
-# whole contract. test_smoke.py asserts what these values render.
+# Values of the smoke release (test_smoke.py): every field the chart maps, in a
+# shape that reaches Ready on the platform Harness — a display name, an icon, a
+# description, a system prompt, a toolset with a narrowed muster binding, a
+# public git skill pinned to a commit (materialised during the golden boot),
+# extra labels and annotations. test_smoke.py asserts what these values render
+# and that the template boots. Shapes that cannot boot (an OCI skill on a
+# placeholder registry, a binding to a RemoteMCPServer that does not exist)
+# are render-tested in helm/agent/tests/ instead.
 agent:
   displayName: "ATS Smoke Agent"
-  description: Exercises the chart's field mapping against the v1alpha3 CRDs.
+  description: Exercises the chart's field mapping on the platform's runtime.
   iconUrl: https://avatars.example.com/ats-smoke.svg
   systemMessage: |
     You are the chart's smoke test. Be brief.
@@ -20,14 +25,6 @@ skills:
       url: https://github.com/giantswarm/agent-skills
       commit: cb1fb768bbbbcaa035b884a99ad308b14f846468
     path: agent-self-awareness
-  - name: runbooks
-    oci: registry.example.io/skills/runbooks@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-extraTools:
-  - mcp:
-      server:
-        kind: RemoteMCPServer
-        name: github
-      requireApproval: true
 labels:
   giantswarm.io/owner: ats
 annotations:

@@ -1,0 +1,66 @@
+# Values of the kagent release the ATS runtime installs into the kagent
+# namespace (conftest.py install_kagent; the chart version is KAGENT_LINE there,
+# and the WorkerPool's worker image is set from SUBSTRATE_LINE on the command
+# line so the two pins stay in one file). The shape the platform's meta chart
+# gives kagent, reduced to what a golden boot needs:
+#
+#   * the controller wired to the Substrate control plane in ate-system, the
+#     WorkerPool of gVisor workers it places actors on (two, so a boot never
+#     waits for the one worker), the bundled database;
+#   * the default ModelConfig from `providers` with a placeholder key — Ready
+#     means compiled, admitted and bootable, no model is called;
+#   * no UI (the chart has no switch; zero replicas keep the Deployment
+#     without a pod — its image is the largest pull of the install).
+#
+# Sized for the CI executor: modest requests so the controller, its database,
+# the workers and Substrate's control plane schedule on the one node.
+fullnameOverride: kagent
+
+controller:
+  substrate:
+    enabled: true
+    ateApiEndpoint: dns:///api.ate-system.svc:443
+    atenetRouterURL: http://atenet-router.ate-system.svc:80
+    defaultWorkerPool:
+      name: kagent-default
+  metrics:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+substrateWorkerPool:
+  create: true
+  name: kagent-default
+  replicas: 2
+  sandboxClass: gvisor
+  template:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+
+database:
+  postgres:
+    bundled:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+
+providers:
+  default: anthropic
+  anthropic:
+    provider: Anthropic
+    model: claude-sonnet-4-6
+    apiKeySecretRef: kagent-anthropic
+    apiKeySecretKey: ANTHROPIC_API_KEY
+    # Not a credential: the smoke makes no model call.
+    apiKey: placeholder
+
+ui:
+  replicas: 0

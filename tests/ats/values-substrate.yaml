@@ -1,0 +1,26 @@
+# Values of the substrate release the ATS runtime installs into ate-system
+# (conftest.py install_substrate; the chart version is SUBSTRATE_LINE there).
+# The chart's own shape with its bundled control-plane database and the
+# in-cluster snapshot store (the same knobs a kind lab uses); the CA/JWT pools,
+# the trust anchor and ate-api-server's authentication config are created by
+# substrate-bootstrap.yaml before the install. Sized for the CI executor.
+#
+# The namespaces exist before the chart (the pools live in them), so the chart
+# renders no Namespace of its own for the release; the podcertificate-controller
+# one it does render is taken over (`helm install --take-ownership`).
+createNamespace: false
+
+postgres:
+  enabled: true
+  storageSize: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+rustfs:
+  enabled: true
+  storageSize: 1Gi
