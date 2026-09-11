@@ -34,9 +34,9 @@
 # anything else runs: the five kagent.dev CRDs (helm/kagent-crds/templates/,
 # plain YAML, byte-identical to the controller's CRD bases) and the three
 # ate.dev CRDs (charts/substrate-crds/templates/). ATS takes ONE value and hands
-# it to kubectl as is; kubectl's -f splits on commas, so the URLs are one
-# comma-joined string (the escaped line breaks of the double-quoted scalar fold
-# to nothing, no space). The charts and images come from the same tags through
+# it to kubectl as is; kubectl's -f splits on commas, so the URLs are ONE
+# comma-joined string on ONE line (no space; ATS reads this file line by line,
+# not as YAML — a folded or multi-line scalar is read as further keys). The charts and images come from the same tags through
 # tests/ats/conftest.py (KAGENT_LINE, SUBSTRATE_LINE, and HARNESS_IMAGE — the
 # Go ADK image of the kagent release BY DIGEST, the Harness CRD accepts no tag).
 #
@@ -49,13 +49,7 @@
 # disagree, so a half-done bump fails before anything is installed.
 #
 # upgrade stays skipped: 0.x -> 1.0 is a breaking change of the values.
-cluster-crds: "https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_agenttemplates.yaml,\
-  https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_harnesses.yaml,\
-  https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_modelconfigs.yaml,\
-  https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_modelproviderconfigs.yaml,\
-  https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_remotemcpservers.yaml,\
-  https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_csidriverconfigs.yaml,\
-  https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_sandboxconfigs.yaml,\
-  https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_workerpools.yaml"
+# yamllint disable-line rule:line-length
+cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_harnesses.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_modelconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_modelproviderconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_remotemcpservers.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_csidriverconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_sandboxconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_workerpools.yaml
 app-tests-skip-app-deploy: true
 skip-steps: [upgrade]
