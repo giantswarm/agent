@@ -586,12 +586,12 @@ def wait_server_accepted(kube: Kube, name: str, timeout: float = SERVER_TIMEOUT_
         server = remote_mcp_server(kube, name)
         if not server:
             raise FailFast(f"RemoteMCPServer {KAGENT_NAMESPACE}/{name} does not exist")
-        conditions = (server.get("status") or {}).get("conditions") or []
-        failed = [describe(c) for c in conditions if c.get("status") == "False"]
+        status = server.get("status") or {}
+        failed = [describe(c) for c in status.get("conditions") or [] if c.get("status") == "False"]
         if failed:
             raise FailFast(f"RemoteMCPServer {KAGENT_NAMESPACE}/{name} has failed conditions: {failed}")
-        seen[:] = [f"generation {server['metadata']['generation']}, status {json.dumps(server.get('status') or {})[:300]}"]
-        return server if condition(server, "Accepted").get("status") == "True" else None
+        seen[:] = [f"generation {server['metadata']['generation']}, status {json.dumps(status)[:300]}"]
+        return server if condition(status, "Accepted").get("status") == "True" else None
 
     try:
         return wait_for(f"RemoteMCPServer {name} Accepted", poll, timeout)
