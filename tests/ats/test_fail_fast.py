@@ -1,6 +1,6 @@
 """Functional: the readiness wait fails fast, with the reason.
 
-Two shapes an operator gets wrong, each against the runtime the smoke
+Three shapes an operator gets wrong, each against the runtime the smoke
 brought up, each answered in seconds instead of the Ready timeout:
 
   * a template no Harness admits — `agent.harness` names a Harness that does
@@ -8,24 +8,24 @@ brought up, each answered in seconds instead of the Ready timeout:
     catches up with the generation and reports no Harness;
   * a Harness on a WorkerPool without a ready worker — a pool whose worker
     image does not exist never gets a worker, and a template admitted by a
-    Harness on that pool never boots.
+    Harness on that pool never boots;
+  * a Harness whose image cannot be pulled — a digest the registry has never
+    seen. The golden boot's pull fails inside the worker with the registry's
+    answer; Substrate crashes the golden actor on it and records the cause on
+    the template (`GoldenActorCrashed: actor … crashed: … MANIFEST_UNKNOWN`),
+    which kagent reports as `Ready=False ActorTemplateFailed` with that
+    message. The wait fails on it the moment it is reported.
 
-The wait also ends at once on a failed golden boot (`Ready=False
+The wait ends at once on any failed golden boot (`Ready=False
 ActorTemplateFailed`, Substrate's own message: an invalid golden actor, a
-crash before the snapshot, an unexpected state). A Harness image that cannot
-be pulled is NOT such a case on the pinned Substrate: the golden actor's
-resume fails inside the worker and ate-api-server's ActorTemplate reconciler
-retries a resume error with backoff instead of recording it, so kagent keeps
-reporting `ActorTemplatePending` (measured 2026-09-11 on substrate 0.0.27-gs.2
-+ kagent 0.11.0-gs.3: a Harness on `golang-adk@sha256:000…0` stayed pending
-for the whole 300 s budget, no error message). The wait would fail fast the
-moment Substrate reports it; until then that case is not asserted here.
+crash before the snapshot, an unexpected state).
 
 The Harnesses and the WorkerPool of these cases are the test's own objects,
 named after the case, and are removed with the releases.
 """
 
 import logging
+import time
 from typing import Any, Callable, Dict, Iterator
 
 import pytest
@@ -36,7 +36,11 @@ logger = logging.getLogger(__name__)
 
 UNADMITTED = "ats-unadmitted"
 NO_WORKERS = "ats-no-workers"
+UNPULLABLE = "ats-unpullable-image"
 MISSING_WORKER_IMAGE = "ghcr.io/giantswarm/substrate/ateom-gvisor:0.0.0-does-not-exist"
+# A digest the registry has never seen, in a repository that exists: the
+# Harness CRD accepts no tag, and the pull is answered 404 (MANIFEST_UNKNOWN).
+MISSING_HARNESS_IMAGE = "ghcr.io/giantswarm/kagent/golang-adk@sha256:" + "0" * 64
 
 
 @pytest.fixture
@@ -79,3 +83,18 @@ def test_worker_pool_without_a_ready_worker_fails_fast(kube: Kube, release: Call
     with pytest.raises(FailFast, match="no ready worker") as failure:
         wait_template_ready(kube, NO_WORKERS, harness=NO_WORKERS, timeout=BOOT_TIMEOUT_S)
     logger.info("fail-fast: %s", failure.value)
+
+
+@pytest.mark.functional
+def test_unpullable_harness_image_fails_fast(kube: Kube, release: Callable[..., None], own_objects: Callable[[Dict[str, Any]], None]) -> None:
+    own_objects(harness_object(UNPULLABLE, image=MISSING_HARNESS_IMAGE))
+    release(UNPULLABLE, sets=[f"agent.harness={UNPULLABLE}"])
+    started = time.monotonic()
+    with pytest.raises(FailFast, match="ActorTemplateFailed") as failure:
+        wait_template_ready(kube, UNPULLABLE, harness=UNPULLABLE, timeout=BOOT_TIMEOUT_S)
+    elapsed = time.monotonic() - started
+    logger.info("fail-fast after %.0fs: %s", elapsed, failure.value)
+    # Substrate crashed the golden actor on the registry's answer and recorded
+    # the cause; kagent carries it in the Ready condition's message.
+    assert "GoldenActorCrashed" in str(failure.value)
+    assert elapsed < BOOT_TIMEOUT_S

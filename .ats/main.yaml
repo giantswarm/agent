@@ -20,16 +20,16 @@
 #               RemoteMCPServer.
 #   functional  test_chat_only.py: toolset ["preset:none"] reaches Ready with no
 #               RemoteMCPServer. test_fail_fast.py: the readiness wait answers
-#               in seconds, with the reason, for a template no Harness admits
-#               and for a Harness on a WorkerPool without a ready worker (a
-#               Harness image that cannot be pulled is not reported by the
-#               pinned Substrate — the module docstring has the measurement).
+#               in seconds, with the reason, for a template no Harness admits,
+#               for a Harness on a WorkerPool without a ready worker, and for
+#               a Harness whose image the registry refuses (Substrate crashes
+#               the golden actor with the registry's answer).
 #
 # PINS. Two lines, each pinned at a RELEASE TAG (a tag or a commit, never the
 # consumed `giantswarm` branch, which is force-pushed on every re-pin):
 #
 #   kagent line     giantswarm/kagent-upstream  v0.11.0-gs.3
-#   Substrate line  giantswarm/substrate        v0.0.27-gs.2
+#   Substrate line  giantswarm/substrate        v0.0.27-gs.4
 #
 # `cluster-crds` below applies the CRDs of both lines from those tags before
 # anything else runs: the five kagent.dev CRDs (helm/kagent-crds/templates/,
@@ -52,6 +52,6 @@
 #
 # upgrade stays skipped: 0.x -> 1.0 is a breaking change of the values.
 # yamllint disable-line rule:line-length
-cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_harnesses.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_modelconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_modelproviderconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_remotemcpservers.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_csidriverconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_sandboxconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.2/charts/substrate-crds/templates/ate.dev_workerpools.yaml
+cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_harnesses.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_modelconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_modelproviderconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v0.11.0-gs.3/helm/kagent-crds/templates/kagent.dev_remotemcpservers.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.4/charts/substrate-crds/templates/ate.dev_csidriverconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.4/charts/substrate-crds/templates/ate.dev_sandboxconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v0.0.27-gs.4/charts/substrate-crds/templates/ate.dev_workerpools.yaml
 app-tests-skip-app-deploy: true
 skip-steps: [upgrade]
