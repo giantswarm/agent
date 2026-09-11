@@ -36,11 +36,9 @@ fails fast with the controller's or Substrate's reason instead of sitting out
 the timeout: no Harness admits the template (the controller caught up with the
 generation and reports no Harness), a reference or compatibility failure, a
 golden boot Substrate reports as failed (Ready=False ActorTemplateFailed with
-its message), or a WorkerPool with no ready worker. What Substrate does not
-report cannot be failed fast: on the pinned line a resume that fails inside
-the worker — a Harness image that cannot be pulled — is retried with backoff
-and the template stays ActorTemplatePending (test_fail_fast.py records the
-measurement).
+its message — a Harness image the registry refuses crashes the golden actor
+with the registry's answer, test_fail_fast.py asserts it), or a WorkerPool
+with no ready worker.
 
 Pins. The two lines are named once each below (KAGENT_LINE, SUBSTRATE_LINE);
 the Harness image is the Go ADK image of the kagent line's release BY DIGEST
@@ -101,7 +99,7 @@ KAGENT_CHARTS = "oci://ghcr.io/giantswarm/kagent/helm"
 HARNESS_IMAGE = "ghcr.io/giantswarm/kagent/golang-adk@sha256:a2d23f5eb9c01e1903459a6e742f7d4aaa5e950d7e9aa6f07f8982761be0163a"
 # The Substrate line (giantswarm/substrate), a release tag without the `v`: the
 # substrate chart, its control-plane images and the gVisor worker image.
-SUBSTRATE_LINE = "0.0.27-gs.2"
+SUBSTRATE_LINE = "0.0.27-gs.4"
 SUBSTRATE_CHARTS = "oci://ghcr.io/giantswarm/substrate/helm"
 WORKER_IMAGE = f"ghcr.io/giantswarm/substrate/ateom-gvisor:{SUBSTRATE_LINE}"
 
