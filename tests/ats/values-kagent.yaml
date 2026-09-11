@@ -10,11 +10,20 @@
 #   * the default ModelConfig from `providers` with a placeholder key — Ready
 #     means compiled, admitted and bootable, no model is called;
 #   * no UI (the chart has no switch; zero replicas keep the Deployment
-#     without a pod — its image is the largest pull of the install).
+#     without a pod — its image is the largest pull of the install), no kmcp
+#     and no kagent-tools (both on by default in the chart; the platform runs
+#     neither, and the tools server's RemoteMCPServer would occupy the
+#     controller's discovery worker with connection attempts while it starts).
 #
 # Sized for the CI executor: modest requests so the controller, its database,
 # the workers and Substrate's control plane schedule on the one node.
 fullnameOverride: kagent
+
+kmcp:
+  enabled: false
+
+kagent-tools:
+  enabled: false
 
 controller:
   substrate:

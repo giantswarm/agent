@@ -34,9 +34,8 @@ from conftest import (
     TOOLSET_HEADER,
     Kube,
     assert_all_conditions_true,
-    assert_server_accepted,
-    remote_mcp_server,
     template_generation,
+    wait_server_accepted,
     wait_template_ready,
 )
 
@@ -82,15 +81,13 @@ def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Calla
     ]
     assert spec["tools"] == [{"mcp": {"server": {"kind": "RemoteMCPServer", "name": SMOKE_RELEASE}, "tools": ["list_tools", "call_tool"]}}]
 
-    server = remote_mcp_server(kube, SMOKE_RELEASE)
-    assert server, f"RemoteMCPServer {SMOKE_RELEASE} was not rendered"
+    server = wait_server_accepted(kube, SMOKE_RELEASE)
     assert server["metadata"]["labels"][DISCOVERY_LABEL] == "disabled"
     assert HARNESS_LABEL not in server["metadata"]["labels"]
     assert server["spec"]["url"] == "http://muster.agent-platform.svc.cluster.local:8090/mcp"
     assert server["spec"]["protocol"] == "STREAMABLE_HTTP"
     assert server["spec"]["headersFrom"] == [{"name": TOOLSET_HEADER, "value": "preset:read-only,server:mcp-kubernetes"}]
     assert not [h for h in server["spec"]["headersFrom"] if h["name"].lower() == "authorization"]
-    assert_server_accepted(server)
 
 
 @pytest.mark.smoke
@@ -106,8 +103,6 @@ def test_default_values_reach_ready_with_a_remotemcpserver(kube: Kube, release: 
     assert template["spec"]["modelConfig"] == {"name": "default-model-config"}
     assert template["spec"]["tools"] == [{"mcp": {"server": {"kind": "RemoteMCPServer", "name": DEFAULTS_RELEASE}}}]
 
-    server = remote_mcp_server(kube, DEFAULTS_RELEASE)
-    assert server, f"RemoteMCPServer {DEFAULTS_RELEASE} was not rendered"
+    server = wait_server_accepted(kube, DEFAULTS_RELEASE)
     assert server["metadata"]["labels"][DISCOVERY_LABEL] == "disabled"
     assert "headersFrom" not in server["spec"], server["spec"]
-    assert_server_accepted(server)

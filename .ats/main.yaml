@@ -36,9 +36,10 @@
 # ate.dev CRDs (charts/substrate-crds/templates/). ATS takes ONE value and hands
 # it to kubectl as is; kubectl's -f splits on commas, so the URLs are ONE
 # comma-joined string on ONE line (no space; ATS reads this file line by line,
-# not as YAML — a folded or multi-line scalar is read as further keys). The charts and images come from the same tags through
-# tests/ats/conftest.py (KAGENT_LINE, SUBSTRATE_LINE, and HARNESS_IMAGE — the
-# Go ADK image of the kagent release BY DIGEST, the Harness CRD accepts no tag).
+# not as YAML — a folded or multi-line scalar is read as further keys). The
+# charts and images come from the same tags through tests/ats/conftest.py
+# (KAGENT_LINE, SUBSTRATE_LINE, and HARNESS_IMAGE — the Go ADK image of the
+# kagent release BY DIGEST, the Harness CRD accepts no tag).
 #
 # BUMP: (1) put the next kagent tag into the five kagent-upstream URLs below and
 # into KAGENT_LINE, and the new golang-adk image index digest (`crane digest

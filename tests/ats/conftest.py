@@ -129,6 +129,8 @@ BOOTSTRAP_TIMEOUT_S = 300
 WORKER_POOL_TIMEOUT_S = 420
 FIRST_BOOT_TIMEOUT_S = 600
 BOOT_TIMEOUT_S = 300
+# The discovery reconciler's pass over a RemoteMCPServer it does not connect to.
+SERVER_TIMEOUT_S = 120
 # A WorkerPool without a ready worker for this long is a failure, not a restart.
 NO_READY_WORKER_GRACE_S = 45
 # The controller's pass over a template that no Harness admits is seconds; an
@@ -447,7 +449,8 @@ def dump_kagent(kube: Kube) -> None:
     kube.dump([f"-n {KAGENT_NAMESPACE} get pods -o wide", f"-n {KAGENT_NAMESPACE} get workerpools.ate.dev -o yaml",
                f"-n {KAGENT_NAMESPACE} get harnesses.kagent.dev -o yaml", f"-n {KAGENT_NAMESPACE} get agenttemplates.kagent.dev -o yaml",
                f"-n {KAGENT_NAMESPACE} get remotemcpservers.kagent.dev -o yaml", f"-n {KAGENT_NAMESPACE} get events --sort-by=.lastTimestamp",
-               f"-n {KAGENT_NAMESPACE} logs deployment/kagent-controller --tail=120"])
+               f"-n {KAGENT_NAMESPACE} logs deployment/kagent-controller --tail=120",
+               f"-n {KAGENT_NAMESPACE} logs deployment/kagent-controller --previous --tail=40"])
 
 
 # ---------------------------------------------------------------------------
@@ -567,15 +570,25 @@ def remote_mcp_server(kube: Kube, name: str) -> Optional[Dict[str, Any]]:
     return kube.get("remotemcpservers.kagent.dev", name, namespace=KAGENT_NAMESPACE)
 
 
-def assert_server_accepted(server: Dict[str, Any]) -> None:
-    """The agent's RemoteMCPServer reports no failed condition. With the
-    discovery opt-out the controller accepts it without connecting (agents
-    resolve the tool list at run time), so Accepted is True and nothing is False."""
-    conditions = (server.get("status") or {}).get("conditions") or []
-    failed = [describe(c) for c in conditions if c.get("status") == "False"]
-    assert not failed, f"RemoteMCPServer {server['metadata']['name']} has failed conditions: {failed}"
-    accepted = condition(server, "Accepted")
-    assert accepted.get("status") == "True", f"RemoteMCPServer {server['metadata']['name']} is not Accepted: {describe(accepted) if accepted else 'no conditions yet'}"
+def wait_server_accepted(kube: Kube, name: str, timeout: float = SERVER_TIMEOUT_S) -> Dict[str, Any]:
+    """The agent's RemoteMCPServer once the controller has reported on it:
+    Accepted True and no failed condition. With the discovery opt-out the
+    controller accepts the server without connecting to it (agents resolve the
+    tool list at run time), so a failed condition is a failure, not a retry.
+    The discovery reconciler runs on its own queue, so the status may land
+    after the template's — hence a wait, not a read."""
+
+    def poll() -> Any:
+        server = remote_mcp_server(kube, name)
+        if not server:
+            raise FailFast(f"RemoteMCPServer {KAGENT_NAMESPACE}/{name} does not exist")
+        conditions = (server.get("status") or {}).get("conditions") or []
+        failed = [describe(c) for c in conditions if c.get("status") == "False"]
+        if failed:
+            raise FailFast(f"RemoteMCPServer {KAGENT_NAMESPACE}/{name} has failed conditions: {failed}")
+        return server if condition(server, "Accepted").get("status") == "True" else None
+
+    return wait_for(f"RemoteMCPServer {name} Accepted", poll, timeout)
 
 
 # ---------------------------------------------------------------------------
