@@ -10,10 +10,12 @@
 #   * the default ModelConfig from `providers` with a placeholder key — Ready
 #     means compiled, admitted and bootable, no model is called;
 #   * no UI (the chart has no switch; zero replicas keep the Deployment
-#     without a pod — its image is the largest pull of the install), no kmcp
-#     and no kagent-tools (both on by default in the chart; the platform runs
-#     neither, and the tools server's RemoteMCPServer would occupy the
-#     controller's discovery worker with connection attempts while it starts).
+#     without a pod — its image is the largest pull of the install), and none
+#     of the chart's bundled MCP servers and their operator: kmcp, kagent-tools
+#     and grafana-mcp are all on by default and each brings a RemoteMCPServer
+#     the controller's discovery worker connects to and catalogs on start —
+#     the platform runs none of them, and the smoke's servers (discovery
+#     disabled) must not queue behind them.
 #
 # Sized for the CI executor: modest requests so the controller, its database,
 # the workers and Substrate's control plane schedule on the one node.
@@ -23,6 +25,9 @@ kmcp:
   enabled: false
 
 kagent-tools:
+  enabled: false
+
+grafana-mcp:
   enabled: false
 
 controller:

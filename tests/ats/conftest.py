@@ -446,10 +446,12 @@ def dump_substrate(kube: Kube) -> None:
 
 
 def dump_kagent(kube: Kube) -> None:
+    servers = ("get remotemcpservers.kagent.dev -o custom-columns=NAME:.metadata.name,GENERATION:.metadata.generation,"
+               "OBSERVED:.status.observedGeneration,CONDITIONS:.status.conditions[*].type,STATUS:.status.conditions[*].status,REASON:.status.conditions[*].reason")
     kube.dump([f"-n {KAGENT_NAMESPACE} get pods -o wide", f"-n {KAGENT_NAMESPACE} get workerpools.ate.dev -o yaml",
                f"-n {KAGENT_NAMESPACE} get harnesses.kagent.dev -o yaml", f"-n {KAGENT_NAMESPACE} get agenttemplates.kagent.dev -o yaml",
-               f"-n {KAGENT_NAMESPACE} get remotemcpservers.kagent.dev -o yaml", f"-n {KAGENT_NAMESPACE} get events --sort-by=.lastTimestamp",
-               f"-n {KAGENT_NAMESPACE} logs deployment/kagent-controller --tail=120",
+               f"-n {KAGENT_NAMESPACE} {servers}", f"-n {KAGENT_NAMESPACE} get events --sort-by=.lastTimestamp",
+               f"-n {KAGENT_NAMESPACE} logs deployment/kagent-controller --tail=300",
                f"-n {KAGENT_NAMESPACE} logs deployment/kagent-controller --previous --tail=40"])
 
 
@@ -578,6 +580,8 @@ def wait_server_accepted(kube: Kube, name: str, timeout: float = SERVER_TIMEOUT_
     The discovery reconciler runs on its own queue, so the status may land
     after the template's — hence a wait, not a read."""
 
+    seen: List[str] = []
+
     def poll() -> Any:
         server = remote_mcp_server(kube, name)
         if not server:
@@ -586,9 +590,15 @@ def wait_server_accepted(kube: Kube, name: str, timeout: float = SERVER_TIMEOUT_
         failed = [describe(c) for c in conditions if c.get("status") == "False"]
         if failed:
             raise FailFast(f"RemoteMCPServer {KAGENT_NAMESPACE}/{name} has failed conditions: {failed}")
+        seen[:] = [f"generation {server['metadata']['generation']}, status {json.dumps(server.get('status') or {})[:300]}"]
         return server if condition(server, "Accepted").get("status") == "True" else None
 
-    return wait_for(f"RemoteMCPServer {name} Accepted", poll, timeout)
+    try:
+        return wait_for(f"RemoteMCPServer {name} Accepted", poll, timeout)
+    except AssertionError as exc:
+        if isinstance(exc, FailFast):
+            raise
+        raise AssertionError(f"{exc}; the server's last state: {seen[0] if seen else 'never read'}") from exc
 
 
 # ---------------------------------------------------------------------------
