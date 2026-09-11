@@ -1,89 +1,108 @@
-"""Smoke: the chart installed on kind yields the agent's AgentTemplate and its
-muster RemoteMCPServer, both accepted by the kagent.dev/v1alpha3 CRDs.
+"""Smoke: a release of the chart reaches Ready on the platform Harness.
 
-ATS deploys the chart with tests/ats/values-smoke.yaml before this runs
-(.ats/main.yaml). No kagent controller runs on the kind cluster: acceptance by
-the API server is the assertion, not reconciliation — the Ready proof on the
-platform Harness is a separate step (giantswarm/agent#26).
+On the runtime the ``runtime`` fixture brings up (conftest.py: Substrate,
+kagent and the Harness `kagent`, all before any release of this chart), two
+releases of the archive under test are installed into the Harness's namespace:
 
-Written against the ATS 1.x contract (cluster-crds option, ATS_RELEASE_* env
-vars, docs/TEST_CONTRACT.md in giantswarm/app-test-suite).
+  * `agent` with tests/ats/values-smoke.yaml — a display name, an icon, a
+    toolset, a narrowed muster binding, a public git skill pinned to a commit,
+    extra labels and annotations: every field the chart maps. The template
+    is admitted, compiled and booted into a golden snapshot (the skill is
+    materialised on the way), and the agent's RemoteMCPServer is accepted with
+    no failed condition.
+  * `ats-defaults` with the chart's default values — the smallest release an
+    operator can install. Ready too, with its RemoteMCPServer (the default
+    toolset binds muster).
+
+Ready means compiled, admitted and bootable on the platform's runtime; no
+model is called (the provider key is a placeholder).
 """
 
 import logging
-import os
+from pathlib import Path
+from typing import Callable
 
 import pytest
-from pykube.objects import object_factory
-from pytest_helm_charts.clusters import Cluster
 
-from conftest import API_VERSION, HARNESS_LABEL, TOOLSET_HEADER
+from conftest import (
+    API_VERSION,
+    DISCOVERY_LABEL,
+    FIRST_BOOT_TIMEOUT_S,
+    HARNESS,
+    HARNESS_LABEL,
+    KAGENT_NAMESPACE,
+    TOOLSET_HEADER,
+    Kube,
+    assert_all_conditions_true,
+    template_generation,
+    wait_server_accepted,
+    wait_template_ready,
+)
 
 logger = logging.getLogger(__name__)
 
+SMOKE_RELEASE = "agent"
+SMOKE_VALUES = Path(__file__).resolve().parent / "values-smoke.yaml"
+DEFAULTS_RELEASE = "ats-defaults"
+
 
 @pytest.mark.smoke
-def test_agenttemplate_and_remotemcpserver_accepted(kube_cluster: Cluster) -> None:
-    release_name = os.environ["ATS_RELEASE_NAME"]
-    namespace = os.environ.get("ATS_RELEASE_NAMESPACE", "default")
-    client = kube_cluster.kube_client
+def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Callable[..., None]) -> None:
+    release(SMOKE_RELEASE, SMOKE_VALUES)
+    generation = template_generation(kube, SMOKE_RELEASE)
+    entry = wait_template_ready(kube, SMOKE_RELEASE, timeout=FIRST_BOOT_TIMEOUT_S)
+    assert_all_conditions_true(entry, generation)
+    assert entry["harness"] == HARNESS
+    assert entry["latestSuccessfulRevision"] == entry["desiredRevision"]
+    logger.info("%s Ready on %s at revision %s (warnings: %s)", SMOKE_RELEASE, HARNESS, entry["desiredRevision"], entry.get("warnings") or "none")
 
-    AgentTemplate = object_factory(client, API_VERSION, "AgentTemplate")
-    RemoteMCPServer = object_factory(client, API_VERSION, "RemoteMCPServer")
-    templates = list(AgentTemplate.objects(client, namespace=namespace))
-    servers = list(RemoteMCPServer.objects(client, namespace=namespace))
-    assert len(templates) == 1, [t.name for t in templates]
-    assert len(servers) == 1, [s.name for s in servers]
-
-    template, server = templates[0], servers[0]
-    # agent.name defaults to the release name; both objects carry it.
-    assert template.name == release_name
-    assert server.name == release_name
-
-    # The AgentTemplate: the Harness admission label, the ui annotations, the
-    # extra labels/annotations, the field mapping of values-smoke.yaml.
-    assert template.labels[HARNESS_LABEL] == "kagent"
-    assert template.labels["app.kubernetes.io/instance"] == release_name
-    assert template.labels["giantswarm.io/owner"] == "ats"
-    assert template.annotations["ui.giantswarm.io/display-name"] == "ATS Smoke Agent"
-    assert template.annotations["ui.giantswarm.io/icon-url"] == "https://avatars.example.com/ats-smoke.svg"
-    assert template.annotations["giantswarm.io/scenario"] == "smoke"
-    spec = template.obj["spec"]
+    template = kube.get("agenttemplates.kagent.dev", SMOKE_RELEASE, namespace=KAGENT_NAMESPACE)
+    assert template
+    # The contract the chart renders from values-smoke.yaml.
+    labels, annotations, spec = template["metadata"]["labels"], template["metadata"]["annotations"], template["spec"]
+    assert template["apiVersion"] == API_VERSION
+    assert labels[HARNESS_LABEL] == HARNESS
+    assert labels["app.kubernetes.io/instance"] == SMOKE_RELEASE
+    assert labels["giantswarm.io/owner"] == "ats"
+    assert annotations["ui.giantswarm.io/display-name"] == "ATS Smoke Agent"
+    assert annotations["ui.giantswarm.io/icon-url"] == "https://avatars.example.com/ats-smoke.svg"
+    assert annotations["giantswarm.io/scenario"] == "smoke"
     assert spec["modelConfig"] == {"name": "default-model-config"}
-    assert spec["description"] == "Exercises the chart's field mapping against the v1alpha3 CRDs."
+    assert spec["description"] == "Exercises the chart's field mapping on the platform's runtime."
     assert spec["systemPrompt"] == "You are the chart's smoke test. Be brief."
     assert spec["skills"] == [
         {
             "name": "agent-self-awareness",
             "source": {
-                "git": {
-                    "url": "https://github.com/giantswarm/agent-skills",
-                    "commit": "cb1fb768bbbbcaa035b884a99ad308b14f846468",
-                },
+                "git": {"url": "https://github.com/giantswarm/agent-skills", "commit": "cb1fb768bbbbcaa035b884a99ad308b14f846468"},
                 "path": "agent-self-awareness",
             },
-        },
-        {
-            "name": "runbooks",
-            "source": {
-                "oci": "registry.example.io/skills/runbooks@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            },
-        },
+        }
     ]
-    assert spec["tools"][0]["mcp"]["server"] == {"kind": "RemoteMCPServer", "name": release_name}
-    assert spec["tools"][0]["mcp"]["tools"] == ["list_tools", "call_tool"]
-    assert spec["tools"][1]["mcp"] == {"server": {"kind": "RemoteMCPServer", "name": "github"}, "requireApproval": True}
-    assert len(spec["tools"]) == 2
+    assert spec["tools"] == [{"mcp": {"server": {"kind": "RemoteMCPServer", "name": SMOKE_RELEASE}, "tools": ["list_tools", "call_tool"]}}]
 
-    # The RemoteMCPServer: muster's URL, the toolset header, never an
-    # Authorization header, the discovery opt-out, the shared labels.
-    assert server.labels["kagent.dev/discovery"] == "disabled"
-    assert server.labels["app.kubernetes.io/instance"] == release_name
-    assert server.labels["giantswarm.io/owner"] == "ats"
-    assert HARNESS_LABEL not in server.labels
-    spec = server.obj["spec"]
-    assert spec["url"] == "http://muster.agent-platform.svc.cluster.local:8090/mcp"
-    assert spec["protocol"] == "STREAMABLE_HTTP"
-    assert spec["headersFrom"] == [{"name": TOOLSET_HEADER, "value": "preset:read-only,server:mcp-kubernetes"}]
-    assert not [h for h in spec["headersFrom"] if h["name"].lower() == "authorization"]
-    logger.info("%s and %s accepted at %s", template.name, server.name, API_VERSION)
+    server = wait_server_accepted(kube, SMOKE_RELEASE)
+    assert server["metadata"]["labels"][DISCOVERY_LABEL] == "disabled"
+    assert HARNESS_LABEL not in server["metadata"]["labels"]
+    assert server["spec"]["url"] == "http://muster.agent-platform.svc.cluster.local:8090/mcp"
+    assert server["spec"]["protocol"] == "STREAMABLE_HTTP"
+    assert server["spec"]["headersFrom"] == [{"name": TOOLSET_HEADER, "value": "preset:read-only,server:mcp-kubernetes"}]
+    assert not [h for h in server["spec"]["headersFrom"] if h["name"].lower() == "authorization"]
+
+
+@pytest.mark.smoke
+def test_default_values_reach_ready_with_a_remotemcpserver(kube: Kube, release: Callable[..., None]) -> None:
+    release(DEFAULTS_RELEASE)
+    generation = template_generation(kube, DEFAULTS_RELEASE)
+    entry = wait_template_ready(kube, DEFAULTS_RELEASE)
+    assert_all_conditions_true(entry, generation)
+
+    template = kube.get("agenttemplates.kagent.dev", DEFAULTS_RELEASE, namespace=KAGENT_NAMESPACE)
+    assert template
+    assert template["metadata"]["labels"][HARNESS_LABEL] == HARNESS
+    assert template["spec"]["modelConfig"] == {"name": "default-model-config"}
+    assert template["spec"]["tools"] == [{"mcp": {"server": {"kind": "RemoteMCPServer", "name": DEFAULTS_RELEASE}}}]
+
+    server = wait_server_accepted(kube, DEFAULTS_RELEASE)
+    assert server["metadata"]["labels"][DISCOVERY_LABEL] == "disabled"
+    assert "headersFrom" not in server["spec"], server["spec"]
