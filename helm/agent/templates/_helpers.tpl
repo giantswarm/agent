@@ -15,10 +15,25 @@ Defaults to the release name.
 {{- end -}}
 
 {{/*
-Create chart name and version as used by the chart label.
+The helm.sh/chart label: <name>-<version> as a valid label value. A label is at
+most 63 characters and must end on an alphanumeric: Helm's `+` build metadata
+(helm-controller appends the OCI digest to every chart version it installs,
+`1.0.0+ed59d4befc7e`) becomes `_`, and after the cut every trailing `-`, `.`
+and `_` goes — a branch build's long prerelease version
+(`0.6.2-dev.<branch>.<date>.<time>.h<sha>+<digest>`) made the cut land on the
+`_` once, and the apiserver rejected every object of the release.
 */}}
 {{- define "chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimAll "-._" -}}
+{{- end -}}
+
+{{/*
+The app.kubernetes.io/version label: the chart version made a valid label
+value the same way (this chart has no image of its own; the chart version is
+what identifies a release).
+*/}}
+{{- define "version" -}}
+{{- .Chart.Version | replace "+" "_" | trunc 63 | trimAll "-._" -}}
 {{- end -}}
 
 {{/*
@@ -28,7 +43,7 @@ Common labels
 app: {{ include "name" . | quote }}
 {{ include "labels.selector" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
-app.kubernetes.io/version: {{ .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" | quote }}
+app.kubernetes.io/version: {{ include "version" . | quote }}
 application.giantswarm.io/team: {{ index .Chart.Annotations "io.giantswarm.application.team" | quote }}
 helm.sh/chart: {{ include "chart" . | quote }}
 {{- end -}}

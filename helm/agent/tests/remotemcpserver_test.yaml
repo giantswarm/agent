@@ -234,3 +234,17 @@ tests:
       - equal:
           path: spec.description
           value: muster MCP gateway of agent demo (implicit full access)
+
+  - it: keeps the chart and version labels valid when the 63-character cut lands on the digest separator
+    chart:
+      version: 0.6.2-dev.chart-1-0-agenttemplate.2026-09-10.23-36-48.h8+ed59d4befc7e
+    asserts:
+      - matchRegex:
+          path: metadata.labels["helm.sh/chart"]
+          pattern: ^[a-zA-Z0-9][-A-Za-z0-9_.]{0,61}[a-zA-Z0-9]$
+      - equal:
+          path: metadata.labels["helm.sh/chart"]
+          value: agent-0.6.2-dev.chart-1-0-agenttemplate.2026-09-10.23-36-48.h8
+      - matchRegex:
+          path: metadata.labels["app.kubernetes.io/version"]
+          pattern: ^[a-zA-Z0-9][-A-Za-z0-9_.]{0,61}[a-zA-Z0-9]$
