@@ -1,6 +1,6 @@
 """Functional: the readiness wait fails fast, with the reason.
 
-Three shapes an operator gets wrong, each against the runtime the smoke
+Two shapes an operator gets wrong, each against the runtime the smoke
 brought up, each answered in seconds instead of the Ready timeout:
 
   * a template no Harness admits — `agent.harness` names a Harness that does
@@ -8,10 +8,18 @@ brought up, each answered in seconds instead of the Ready timeout:
     catches up with the generation and reports no Harness;
   * a Harness on a WorkerPool without a ready worker — a pool whose worker
     image does not exist never gets a worker, and a template admitted by a
-    Harness on that pool never boots;
-  * a Harness whose runtime image cannot be pulled — the golden boot fails and
-    Substrate's message reaches the template's Ready condition
-    (ActorTemplateFailed).
+    Harness on that pool never boots.
+
+The wait also ends at once on a failed golden boot (`Ready=False
+ActorTemplateFailed`, Substrate's own message: an invalid golden actor, a
+crash before the snapshot, an unexpected state). A Harness image that cannot
+be pulled is NOT such a case on the pinned Substrate: the golden actor's
+resume fails inside the worker and ate-api-server's ActorTemplate reconciler
+retries a resume error with backoff instead of recording it, so kagent keeps
+reporting `ActorTemplatePending` (measured 2026-09-11 on substrate 0.0.27-gs.2
++ kagent 0.11.0-gs.3: a Harness on `golang-adk@sha256:000…0` stayed pending
+for the whole 300 s budget, no error message). The wait would fail fast the
+moment Substrate reports it; until then that case is not asserted here.
 
 The Harnesses and the WorkerPool of these cases are the test's own objects,
 named after the case, and are removed with the releases.
@@ -22,25 +30,12 @@ from typing import Any, Callable, Dict, Iterator
 
 import pytest
 
-from conftest import (
-    API_VERSION,
-    BOOT_TIMEOUT_S,
-    KAGENT_NAMESPACE,
-    UNADMITTED_TIMEOUT_S,
-    WORKER_POOL,
-    FailFast,
-    Kube,
-    harness_object,
-    wait_template_ready,
-)
+from conftest import BOOT_TIMEOUT_S, KAGENT_NAMESPACE, UNADMITTED_TIMEOUT_S, FailFast, Kube, harness_object, wait_template_ready
 
 logger = logging.getLogger(__name__)
 
 UNADMITTED = "ats-unadmitted"
 NO_WORKERS = "ats-no-workers"
-BAD_IMAGE = "ats-bad-image"
-# A digest-shaped reference the Harness CRD accepts and no registry serves.
-MISSING_IMAGE = "ghcr.io/giantswarm/kagent/golang-adk@sha256:" + "0" * 64
 MISSING_WORKER_IMAGE = "ghcr.io/giantswarm/substrate/ateom-gvisor:0.0.0-does-not-exist"
 
 
@@ -84,15 +79,3 @@ def test_worker_pool_without_a_ready_worker_fails_fast(kube: Kube, release: Call
     with pytest.raises(FailFast, match="no ready worker") as failure:
         wait_template_ready(kube, NO_WORKERS, harness=NO_WORKERS, timeout=BOOT_TIMEOUT_S)
     logger.info("fail-fast: %s", failure.value)
-
-
-@pytest.mark.functional
-def test_harness_image_that_cannot_be_pulled_fails_fast(kube: Kube, release: Callable[..., None], own_objects: Callable[[Dict[str, Any]], None]) -> None:
-    own_objects(harness_object(BAD_IMAGE, image=MISSING_IMAGE, worker_pool=WORKER_POOL))
-    release(BAD_IMAGE, sets=[f"agent.harness={BAD_IMAGE}"])
-    with pytest.raises(FailFast, match="failed for good") as failure:
-        wait_template_ready(kube, BAD_IMAGE, harness=BAD_IMAGE, timeout=BOOT_TIMEOUT_S)
-    logger.info("fail-fast: %s", failure.value)
-    assert "Ready=False" in str(failure.value)
-    template = kube.get("agenttemplates.kagent.dev", BAD_IMAGE, namespace=KAGENT_NAMESPACE)
-    assert template and template["apiVersion"] == API_VERSION

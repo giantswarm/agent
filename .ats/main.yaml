@@ -20,9 +20,10 @@
 #               RemoteMCPServer.
 #   functional  test_chat_only.py: toolset ["preset:none"] reaches Ready with no
 #               RemoteMCPServer. test_fail_fast.py: the readiness wait answers
-#               in seconds, with the reason, for a template no Harness admits,
-#               a Harness on a WorkerPool without a ready worker, and a Harness
-#               image that cannot be pulled.
+#               in seconds, with the reason, for a template no Harness admits
+#               and for a Harness on a WorkerPool without a ready worker (a
+#               Harness image that cannot be pulled is not reported by the
+#               pinned Substrate — the module docstring has the measurement).
 #
 # PINS. Two lines, each pinned at a RELEASE TAG (a tag or a commit, never the
 # consumed `giantswarm` branch, which is force-pushed on every re-pin):

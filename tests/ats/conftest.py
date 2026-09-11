@@ -35,8 +35,12 @@ compiled, admitted and bootable. ``wait_template_ready`` is the one wait, and it
 fails fast with the controller's or Substrate's reason instead of sitting out
 the timeout: no Harness admits the template (the controller caught up with the
 generation and reports no Harness), a reference or compatibility failure, a
-failed golden boot (an image that cannot be pulled, a skill that cannot be
-materialised), or a WorkerPool with no ready worker.
+golden boot Substrate reports as failed (Ready=False ActorTemplateFailed with
+its message), or a WorkerPool with no ready worker. What Substrate does not
+report cannot be failed fast: on the pinned line a resume that fails inside
+the worker — a Harness image that cannot be pulled — is retried with backoff
+and the template stays ActorTemplatePending (test_fail_fast.py records the
+measurement).
 
 Pins. The two lines are named once each below (KAGENT_LINE, SUBSTRATE_LINE);
 the Harness image is the Go ADK image of the kagent line's release BY DIGEST
