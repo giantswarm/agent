@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `muster.requireApproval` (boolean, default `false`): rendered as `requireApproval: true` on the curated muster binding (`spec.tools[].mcp.requireApproval`, kagent API v2), so every tool call through muster pauses the task at `input-required` until a person approves it — kagent's human-in-the-loop. A client that negotiates the HITL A2A extension (`https://kagent.dev/extensions/hitl/v1`) receives the structured `tool_approval_request` and answers it; the Swarmgeist gateway and the Dev Portal do. It applies to the tools the binding exposes (`muster.tools` when set, otherwise every muster tool); `toolset: ["preset:none"]` and `muster.enabled: false` still render no binding. The default render is unchanged. Until now the field was reachable only through `extraAgentSpec`/`extraTools`, which replace the curated tools list or bind the server twice, so no composer could create a HITL-gated agent through the contract.
+
 ### Changed
 
 - The ATS asserts the third fail-fast case: a Harness whose image cannot be pulled (`tests/ats/test_fail_fast.py::test_unpullable_harness_image_fails_fast`, a digest the registry has never seen). Substrate `v0.0.27-gs.4` (giantswarm/substrate#14) crashes the golden actor on the registry's answer and records the cause on the template, so the release fails in seconds as `Ready=False ActorTemplateFailed` (`GoldenActorCrashed: … MANIFEST_UNKNOWN`) instead of sitting out the 300 s budget as `ActorTemplatePending` without a message (the measurement `v0.0.27-gs.2` gave). The Substrate pin moves to `v0.0.27-gs.4` (`.ats/main.yaml` cluster-crds and `SUBSTRATE_LINE`; kagent stays at `v0.11.0-gs.3`).

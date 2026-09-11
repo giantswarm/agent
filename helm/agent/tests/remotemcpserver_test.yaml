@@ -54,6 +54,22 @@ tests:
       - notMatchRegexRaw:
           pattern: '(?i)authorization'
 
+  - it: is untouched by muster.requireApproval (the pause is the binding's, not the server's)
+    set:
+      muster:
+        requireApproval: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - notMatchRegexRaw:
+          pattern: requireApproval
+      - equal:
+          path: spec
+          value:
+            description: muster MCP gateway of agent demo (implicit full access)
+            url: http://muster.agent-platform.svc.cluster.local:8090/mcp
+            protocol: STREAMABLE_HTTP
+
   - it: follows agent.name
     set:
       agent:
