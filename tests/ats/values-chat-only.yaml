@@ -1,0 +1,7 @@
+# Values of the functional scenario's release (test_chat_only.py): a chat-only
+# agent — exactly ["preset:none"] renders no RemoteMCPServer and a template
+# without a muster binding.
+agent:
+  displayName: "ATS Chat-only Agent"
+toolset:
+  - preset:none

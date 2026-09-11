@@ -1,0 +1,20 @@
+renders the default values (golden):
+  1: |
+    apiVersion: kagent.dev/v1alpha3
+    kind: RemoteMCPServer
+    metadata:
+      labels:
+        app: agent
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: agent
+        app.kubernetes.io/version: 0.0.0-dev
+        application.giantswarm.io/team: bumblebee
+        helm.sh/chart: agent-0.0.0-dev
+        kagent.dev/discovery: disabled
+      name: demo
+      namespace: demo-ns
+    spec:
+      description: muster MCP gateway of agent demo (implicit full access)
+      protocol: STREAMABLE_HTTP
+      url: http://muster.agent-platform.svc.cluster.local:8090/mcp

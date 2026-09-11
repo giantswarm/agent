@@ -1,0 +1,599 @@
+# Render tests for the AgentTemplate (kagent.dev/v1alpha3) the chart produces.
+#
+# Run with: make helm-test (helm unittest helm/agent). The chart-test CircleCI
+# job runs the same target on every PR (.circleci/custom.yml).
+#
+# The default-render snapshot in __snapshot__/ is the golden file of the 1.0
+# contract. Update it only on purpose (make helm-unittest-update) and say so
+# in the PR. Schema errors are matched on the value path only, because the
+# message wording differs between Helm versions.
+suite: agenttemplate
+templates:
+  - templates/agenttemplate.yaml
+release:
+  name: demo
+  namespace: demo-ns
+tests:
+  - it: renders the default values (golden)
+    asserts:
+      - hasDocuments:
+          count: 1
+      - matchSnapshot: {}
+      - isAPIVersion:
+          of: kagent.dev/v1alpha3
+      - isKind:
+          of: AgentTemplate
+      - equal:
+          path: metadata.name
+          value: demo
+      - equal:
+          path: metadata.namespace
+          value: demo-ns
+      - equal:
+          path: metadata.labels["agent-platform.giantswarm.io/harness"]
+          value: kagent
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: demo
+      - notExists:
+          path: metadata.annotations
+      - equal:
+          path: spec.modelConfig.name
+          value: default-model-config
+      - equal:
+          path: spec.systemPrompt
+          value: You are a helpful agent.
+      - notExists:
+          path: spec.description
+      - notExists:
+          path: spec.skills
+      - lengthEqual:
+          path: spec.tools
+          count: 1
+      - equal:
+          path: spec.tools[0].mcp.server
+          value:
+            kind: RemoteMCPServer
+            name: demo
+      - notExists:
+          path: spec.tools[0].mcp.tools
+
+  # identity
+  - it: names the template and its binding after agent.name when set
+    set:
+      agent:
+        name: sre-assistant
+    asserts:
+      - equal:
+          path: metadata.name
+          value: sre-assistant
+      - equal:
+          path: spec.tools[0].mcp.server.name
+          value: sre-assistant
+
+  - it: renders description and a multi-line system prompt
+    set:
+      agent:
+        description: Helps the SRE team triage incidents.
+        systemMessage: |
+          You are an SRE assistant.
+          Be concise.
+    asserts:
+      - equal:
+          path: spec.description
+          value: Helps the SRE team triage incidents.
+      - equal:
+          path: spec.systemPrompt
+          value: |-
+            You are an SRE assistant.
+            Be concise.
+
+  - it: references the ModelConfig by name
+    set:
+      modelConfig:
+        name: claude-sonnet
+    asserts:
+      - equal:
+          path: spec.modelConfig.name
+          value: claude-sonnet
+
+  # labels and annotations: the cross-repo contract
+  - it: drives the Harness admission label from agent.harness
+    set:
+      agent:
+        harness: claude
+    asserts:
+      - equal:
+          path: metadata.labels["agent-platform.giantswarm.io/harness"]
+          value: claude
+
+  - it: merges extra labels over the standard set, the extra labels winning
+    set:
+      labels:
+        giantswarm.io/owner: sre-team
+        agent-platform.giantswarm.io/harness: bridge
+    asserts:
+      - equal:
+          path: metadata.labels["giantswarm.io/owner"]
+          value: sre-team
+      - equal:
+          path: metadata.labels["agent-platform.giantswarm.io/harness"]
+          value: bridge
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: agent
+
+  - it: renders display name and icon as the ui.giantswarm.io annotations next to extra annotations
+    set:
+      agent:
+        displayName: "SRE Assistant ✨"
+        iconUrl: https://avatars.example.com/sre.svg
+      annotations:
+        giantswarm.io/owner: sre-team
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            ui.giantswarm.io/display-name: "SRE Assistant ✨"
+            ui.giantswarm.io/icon-url: https://avatars.example.com/sre.svg
+            giantswarm.io/owner: sre-team
+
+  - it: renders only the annotations that are set
+    set:
+      agent:
+        iconUrl: https://avatars.example.com/sre.svg
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            ui.giantswarm.io/icon-url: https://avatars.example.com/sre.svg
+
+  # skills
+  - it: renders git and OCI skills as immutable sources
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+          path: runbooks
+        - name: sre
+          oci: registry.example.io/skills/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        - name: sha256-commit
+          git:
+            url: https://git.example.com/skills.git
+            commit: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    asserts:
+      - equal:
+          path: spec.skills
+          value:
+            - name: runbooks
+              source:
+                git:
+                  url: https://github.com/example/skills
+                  commit: 0123456789abcdef0123456789abcdef01234567
+                path: runbooks
+            - name: sre
+              source:
+                oci: registry.example.io/skills/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+            - name: sha256-commit
+              source:
+                git:
+                  url: https://git.example.com/skills.git
+                  commit: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+  - it: refuses two skills with the same name, naming both entries
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+        - name: runbooks
+          oci: registry.example.io/skills/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills\[1\]\.name "runbooks" is already used by skills\[0\]'
+
+  - it: refuses a git branch as the commit
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: main
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0[./]git[./]commit'
+
+  - it: refuses a git tag as the commit
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: v1.4.0
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0[./]git[./]commit'
+
+  - it: refuses a short SHA as the commit
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: 0123456
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0[./]git[./]commit'
+
+  - it: refuses a git URL that is not http(s)
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: git@github.com:example/skills.git
+            commit: 0123456789abcdef0123456789abcdef01234567
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0[./]git[./]url'
+
+  - it: refuses an OCI tag instead of a digest
+    set:
+      skills:
+        - name: sre
+          oci: registry.example.io/skills/sre:1.4.0
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0[./]oci'
+
+  - it: refuses a path with a .. segment
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+          path: ../outside
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0[./]path'
+
+  - it: refuses an absolute path
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+          path: /skills/runbooks
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0[./]path'
+
+  - it: refuses a skill with both git and oci
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+          oci: registry.example.io/skills/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0'
+
+  - it: refuses a skill without a source
+    set:
+      skills:
+        - name: runbooks
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0'
+
+  - it: refuses a skill without a name
+    set:
+      skills:
+        - oci: registry.example.io/skills/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills[./]0.*name'
+
+  - it: refuses the 0.x skills object shape (refs, gitRefs, gitAuthSecretRef)
+    values:
+      - values/skills-0x-object.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills'
+
+  # tools
+  - it: narrows the binding with muster.tools
+    set:
+      muster:
+        tools:
+          - list_tools
+          - call_tool
+    asserts:
+      - equal:
+          path: spec.tools[0].mcp.tools
+          value:
+            - list_tools
+            - call_tool
+
+  - it: appends extraTools after the muster binding
+    set:
+      extraTools:
+        - mcp:
+            server:
+              kind: RemoteMCPServer
+              name: github
+            requireApproval: true
+        - agent:
+            name: reviewer
+            description: Reviews the plan before it is executed.
+            templateRef:
+              name: reviewer
+    asserts:
+      - lengthEqual:
+          path: spec.tools
+          count: 3
+      - equal:
+          path: spec.tools[0].mcp.server.name
+          value: demo
+      - equal:
+          path: spec.tools[1].mcp.server.name
+          value: github
+      - equal:
+          path: spec.tools[1].mcp.requireApproval
+          value: true
+      - equal:
+          path: spec.tools[2].agent.templateRef.name
+          value: reviewer
+
+  - it: renders no tools at all for exactly ["preset:none"]
+    set:
+      toolset:
+        - preset:none
+    asserts:
+      - notExists:
+          path: spec.tools
+
+  - it: renders only the extraTools for ["preset:none"] with extraTools
+    set:
+      toolset:
+        - preset:none
+      extraTools:
+        - mcp:
+            server:
+              kind: RemoteMCPServer
+              name: github
+    asserts:
+      - lengthEqual:
+          path: spec.tools
+          count: 1
+      - equal:
+          path: spec.tools[0].mcp.server.name
+          value: github
+
+  - it: keeps the muster binding when preset:none is combined with other selectors
+    set:
+      toolset:
+        - preset:none
+        - tool:x_mcp-kubernetes_get_pods
+    asserts:
+      - equal:
+          path: spec.tools[0].mcp.server.name
+          value: demo
+
+  - it: renders no muster binding when muster is disabled
+    set:
+      toolset:
+        - preset:read-only
+      muster:
+        enabled: false
+    asserts:
+      - notExists:
+          path: spec.tools
+
+  # extraAgentSpec
+  - it: deep-merges extraAgentSpec over the curated spec, the escape hatch winning
+    set:
+      extraAgentSpec:
+        modelConfig:
+          name: other-model
+        promptTemplate:
+          dataSources:
+            - name: runbook-index
+    asserts:
+      - equal:
+          path: spec.modelConfig.name
+          value: other-model
+      - equal:
+          path: spec.promptTemplate.dataSources[0].name
+          value: runbook-index
+      - equal:
+          path: spec.systemPrompt
+          value: You are a helpful agent.
+
+  # removed 0.x values: the schema refuses every one of them
+  - it: refuses agent.runtime
+    set:
+      agent:
+        runtime: go
+    asserts:
+      - failedTemplate:
+          errorPattern: runtime
+
+  - it: refuses replicas
+    set:
+      replicas: 1
+    asserts:
+      - failedTemplate:
+          errorPattern: replicas
+
+  - it: refuses resources
+    set:
+      resources:
+        limits:
+          cpu: "1"
+    asserts:
+      - failedTemplate:
+          errorPattern: resources
+
+  - it: refuses nodeSelector
+    set:
+      nodeSelector:
+        kubernetes.io/arch: amd64
+    asserts:
+      - failedTemplate:
+          errorPattern: nodeSelector
+
+  - it: refuses tolerations
+    set:
+      tolerations:
+        - key: dedicated
+          operator: Exists
+    asserts:
+      - failedTemplate:
+          errorPattern: tolerations
+
+  - it: refuses muster.serverRef
+    set:
+      muster:
+        serverRef:
+          name: muster
+          namespace: agent-platform
+    asserts:
+      - failedTemplate:
+          errorPattern: serverRef
+
+  - it: refuses muster.allowedHeaders
+    set:
+      muster:
+        allowedHeaders:
+          - authorization
+    asserts:
+      - failedTemplate:
+          errorPattern: allowedHeaders
+
+  - it: refuses muster.toolNames (renamed to muster.tools)
+    set:
+      muster:
+        toolNames:
+          - list_tools
+    asserts:
+      - failedTemplate:
+          errorPattern: toolNames
+
+  - it: refuses muster.stsWellKnownUri
+    set:
+      muster:
+        stsWellKnownUri: http://muster.agent-platform.svc.cluster.local:8090/.well-known/oauth-authorization-server
+    asserts:
+      - failedTemplate:
+          errorPattern: stsWellKnownUri
+
+  # toolset render failures (the grammar is unchanged)
+  - it: fails on an empty toolset and points at preset:none
+    set:
+      toolset: []
+    asserts:
+      - failedTemplate:
+          errorPattern: 'toolset is empty.*preset:none'
+
+  - it: fails above 32 selectors and says to define a preset
+    set:
+      toolset:
+        - tool:t01
+        - tool:t02
+        - tool:t03
+        - tool:t04
+        - tool:t05
+        - tool:t06
+        - tool:t07
+        - tool:t08
+        - tool:t09
+        - tool:t10
+        - tool:t11
+        - tool:t12
+        - tool:t13
+        - tool:t14
+        - tool:t15
+        - tool:t16
+        - tool:t17
+        - tool:t18
+        - tool:t19
+        - tool:t20
+        - tool:t21
+        - tool:t22
+        - tool:t23
+        - tool:t24
+        - tool:t25
+        - tool:t26
+        - tool:t27
+        - tool:t28
+        - tool:t29
+        - tool:t30
+        - tool:t31
+        - tool:t32
+        - tool:t33
+    asserts:
+      - failedTemplate:
+          errorPattern: 'toolset has 33 selectors.*define a preset'
+
+  - it: "refuses toolset:<name> as reserved"
+    set:
+      toolset:
+        - preset:read-only
+        - toolset:foo
+    asserts:
+      - failedTemplate:
+          errorPattern: '"toolset:foo".*reserved for shared toolsets'
+
+  - it: "refuses an inline label: selector"
+    set:
+      toolset:
+        - label:agent-platform.giantswarm.io/tool-group=infrastructure
+    asserts:
+      - failedTemplate:
+          errorPattern: 'label: selectors are allowed inside presets only'
+
+  - it: refuses a selector without a known prefix
+    set:
+      toolset:
+        - read-only
+    asserts:
+      - failedTemplate:
+          errorPattern: '"read-only" is invalid.*preset:<name>, server:<name>, workflow:<name> or tool:<name>'
+
+  - it: refuses a selector with whitespace in the name
+    set:
+      toolset:
+        - "preset:read only"
+    asserts:
+      - failedTemplate:
+          errorPattern: '"preset:read only" is invalid'
+
+  - it: refuses a selector with a comma in the name
+    set:
+      toolset:
+        - "tool:a,tool:b"
+    asserts:
+      - failedTemplate:
+          errorPattern: '"tool:a,tool:b" is invalid'
+
+  - it: refuses a selector with an empty name
+    set:
+      toolset:
+        - "preset:"
+    asserts:
+      - failedTemplate:
+          errorPattern: '"preset:" is invalid'
+
+  - it: refuses a non-list toolset through the values schema
+    set:
+      toolset: preset:read-only
+    asserts:
+      - failedTemplate:
+          errorPattern: toolset

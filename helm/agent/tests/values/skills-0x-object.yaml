@@ -1,0 +1,8 @@
+# The 0.x skills shape (an object with refs/gitRefs/gitAuthSecretRef): a stale
+# composer sending it must fail the render at the schema. A values file, not
+# `set:` — the unittest plugin cannot merge an object over the default list.
+skills:
+  refs:
+    - registry.example.io/skills/sre:1.4.0
+  gitAuthSecretRef:
+    name: kagent-skills-token

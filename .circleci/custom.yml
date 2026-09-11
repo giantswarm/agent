@@ -3,12 +3,14 @@
 # devctl never touches it.
 #
 #   - chart-test: helm lint plus the helm-unittest render suites in
-#     helm/agent/tests/ (what the Agent renders from the values: the golden
-#     default render, the toolset header, the preset:none omission and the
-#     render failures for an empty or oversized toolset). The generated jobs
-#     only package the chart (build-chart) and deploy it onto kind
-#     (execute-chart-tests); the unittest plugin is not in the architect
-#     images, so this job runs in a plain container with a pinned helm.
+#     helm/agent/tests/ (what the AgentTemplate and the RemoteMCPServer render
+#     from the values: the golden default renders, the label/annotation
+#     contract, the toolset header, the preset:none omission, the skills
+#     mapping and the render failures the values schema produces). The
+#     generated jobs only package the chart (build-chart), deploy it onto kind
+#     (execute-chart-tests) and publish the branch build (push-chart); the
+#     unittest plugin is not in the architect images, so this job runs in a
+#     plain container with a pinned helm.
 version: 2.1
 
 jobs:
