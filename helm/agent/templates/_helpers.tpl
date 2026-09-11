@@ -241,6 +241,9 @@ tools:
       tools:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.muster.requireApproval }}
+      requireApproval: true
+      {{- end }}
   {{- end }}
   {{- with .Values.extraTools }}
   {{- toYaml . | nindent 2 }}

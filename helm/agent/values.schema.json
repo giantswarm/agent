@@ -210,6 +210,10 @@
                     "type": "boolean",
                     "description": "Wire muster into the agent's tools: render the agent's RemoteMCPServer and bind it in the AgentTemplate."
                 },
+                "requireApproval": {
+                    "type": "boolean",
+                    "description": "Pause the agent before every tool call through muster until a person approves it. Rendered as `requireApproval: true` on the binding (kagent's human-in-the-loop): the Harness stops the task at `input-required` for each call and continues with the person's decision. It applies to the tools the binding exposes — `tools` when set, otherwise every muster tool. A client that negotiates kagent's HITL A2A extension (`https://kagent.dev/extensions/hitl/v1`) receives the structured `tool_approval_request` and answers it; one that does not sees a plain notice that human input is required. Off by default: the agent calls tools without asking."
+                },
                 "tools": {
                     "type": "array",
                     "description": "Set to narrow the binding to a subset of muster's meta-tools (`list_tools`, `call_tool`, ...); leave empty to bind every tool. Rendered into the binding's `tools`. A toolset is the way to narrow the tools behind the gateway. A Harness enforces a partial selection only when it can discover the server's tools; with discovery off (the default) it may expose the whole server and report a warning in the template's status.harnesses[].warnings.",

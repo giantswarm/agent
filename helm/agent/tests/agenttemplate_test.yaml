@@ -57,6 +57,8 @@ tests:
             name: demo
       - notExists:
           path: spec.tools[0].mcp.tools
+      - notExists:
+          path: spec.tools[0].mcp.requireApproval
 
   # identity
   - it: names the template and its binding after agent.name when set
@@ -321,6 +323,48 @@ tests:
             - list_tools
             - call_tool
 
+  - it: gates every muster tool call behind a human approval with muster.requireApproval
+    set:
+      muster:
+        requireApproval: true
+    asserts:
+      - lengthEqual:
+          path: spec.tools
+          count: 1
+      - equal:
+          path: spec.tools[0].mcp.server.name
+          value: demo
+      - equal:
+          path: spec.tools[0].mcp.requireApproval
+          value: true
+      - notExists:
+          path: spec.tools[0].mcp.tools
+
+  - it: gates the narrowed binding when muster.requireApproval and muster.tools are combined
+    set:
+      muster:
+        requireApproval: true
+        tools:
+          - call_tool
+    asserts:
+      - equal:
+          path: spec.tools[0].mcp
+          value:
+            server:
+              kind: RemoteMCPServer
+              name: demo
+            tools:
+              - call_tool
+            requireApproval: true
+
+  - it: refuses a non-boolean muster.requireApproval through the values schema
+    set:
+      muster:
+        requireApproval: "yes"
+    asserts:
+      - failedTemplate:
+          errorPattern: 'muster[./]requireApproval'
+
   - it: appends extraTools after the muster binding
     set:
       extraTools:
@@ -355,6 +399,16 @@ tests:
     set:
       toolset:
         - preset:none
+    asserts:
+      - notExists:
+          path: spec.tools
+
+  - it: renders no tools for ["preset:none"] even with muster.requireApproval
+    set:
+      toolset:
+        - preset:none
+      muster:
+        requireApproval: true
     asserts:
       - notExists:
           path: spec.tools

@@ -91,6 +91,18 @@ muster:
   # the whole server and report a warning in the template's
   # status.harnesses[].warnings.
   tools: []
+  # @schema type:boolean
+  # -- Pause the agent before every tool call through muster until a person
+  # approves it. Rendered as `requireApproval: true` on the binding (kagent's
+  # human-in-the-loop): the Harness stops the task at `input-required` for
+  # each call and continues with the person's decision. It applies to the
+  # tools the binding exposes — `tools` when set, otherwise every muster
+  # tool. A client that negotiates kagent's HITL A2A extension
+  # (`https://kagent.dev/extensions/hitl/v1`) receives the structured
+  # `tool_approval_request` and answers it; one that does not sees a plain
+  # notice that human input is required. Off by default: the agent calls
+  # tools without asking.
+  requireApproval: false
   # -- Tool discovery by the kagent controller against muster.
   discovery:
     # @schema type:boolean
