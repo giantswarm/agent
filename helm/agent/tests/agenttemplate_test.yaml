@@ -184,6 +184,93 @@ tests:
                   url: https://git.example.com/skills.git
                   commit: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
+  - it: renders no credentialRef anywhere while skillsGitAuthSecretRef is unset
+    set:
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+    asserts:
+      - notExists:
+          path: spec.skills[0].source.git.credentialRef
+
+  # private skill repositories: one credential fans out to every git skill
+  - it: renders credentialRef {name, key token} on every git skill and none on OCI skills with skillsGitAuthSecretRef.name
+    set:
+      skillsGitAuthSecretRef:
+        name: kagent-skills-token
+      skills:
+        - name: runbooks
+          git:
+            url: https://github.com/example/private-skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+          path: runbooks
+        - name: sre
+          oci: registry.example.io/skills/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        - name: public-too
+          git:
+            url: https://github.com/example/public-skills
+            commit: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    asserts:
+      - equal:
+          path: spec.skills
+          value:
+            - name: runbooks
+              source:
+                git:
+                  url: https://github.com/example/private-skills
+                  commit: 0123456789abcdef0123456789abcdef01234567
+                  credentialRef:
+                    name: kagent-skills-token
+                    key: token
+                path: runbooks
+            - name: sre
+              source:
+                oci: registry.example.io/skills/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+            - name: public-too
+              source:
+                git:
+                  url: https://github.com/example/public-skills
+                  commit: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+                  credentialRef:
+                    name: kagent-skills-token
+                    key: token
+
+  - it: refuses a plain http git skill when skillsGitAuthSecretRef.name is set, naming the skill
+    set:
+      skillsGitAuthSecretRef:
+        name: kagent-skills-token
+      skills:
+        - name: public
+          git:
+            url: https://github.com/example/skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+        - name: intranet
+          git:
+            url: http://git.corp.example/skills
+            commit: 0123456789abcdef0123456789abcdef01234567
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skills\[1\] "intranet": skillsGitAuthSecretRef.name is set, so every git skill needs an https:// URL'
+
+  - it: refuses an unknown key under skillsGitAuthSecretRef through the values schema
+    set:
+      skillsGitAuthSecretRef:
+        name: kagent-skills-token
+        key: password
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skillsGitAuthSecretRef'
+
+  - it: refuses a skillsGitAuthSecretRef.name that is not a Secret name through the values schema
+    set:
+      skillsGitAuthSecretRef:
+        name: Kagent_Skills
+    asserts:
+      - failedTemplate:
+          errorPattern: 'skillsGitAuthSecretRef[./]name'
+
   - it: refuses two skills with the same name, naming both entries
     set:
       skills:

@@ -45,7 +45,7 @@
             "properties": {
                 "url": {
                     "type": "string",
-                    "description": "http(s) URL of the repository.",
+                    "description": "http(s) URL of the repository. A private repository needs `skillsGitAuthSecretRef` and an https URL.",
                     "pattern": "^https?://\\S+$"
                 },
                 "commit": {

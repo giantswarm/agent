@@ -193,22 +193,34 @@ image, relative path) is the schema's job. Fails the render naming the entry.
 
 {{/*
 The AgentTemplate's spec.skills: every value entry {name, git|oci, path} as a
-{name, source: {git|oci, path}} item.
+{name, source: {git|oci, path}} item. With skillsGitAuthSecretRef.name set,
+every git source carries credentialRef {name, key: token} — the one credential
+fans out to every git skill; the CRD admits a credential on an https URL only,
+so a plain http source fails the render here, naming the skill.
 */}}
 {{- define "agent.skills" -}}
 {{- include "agent.skills.validate" . -}}
-{{- range .Values.skills }}
-- name: {{ .name | quote }}
+{{- $credential := (.Values.skillsGitAuthSecretRef | default dict).name -}}
+{{- range $i, $skill := .Values.skills }}
+- name: {{ $skill.name | quote }}
   source:
-    {{- with .git }}
+    {{- with $skill.git }}
     git:
       url: {{ .url | quote }}
       commit: {{ .commit | quote }}
+      {{- if $credential }}
+      {{- if not (hasPrefix "https://" .url) }}
+        {{- fail (printf "skills[%d] %q: skillsGitAuthSecretRef.name is set, so every git skill needs an https:// URL (the credential is offered to the source's https host only); got %q" $i $skill.name .url) }}
+      {{- end }}
+      credentialRef:
+        name: {{ $credential | quote }}
+        key: token
+      {{- end }}
     {{- end }}
-    {{- with .oci }}
+    {{- with $skill.oci }}
     oci: {{ . | quote }}
     {{- end }}
-    {{- with .path }}
+    {{- with $skill.path }}
     path: {{ . | quote }}
     {{- end }}
 {{- end }}
