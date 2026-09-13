@@ -25,7 +25,7 @@
                         },
                         "url": {
                             "type": "string",
-                            "description": "http(s) URL of the repository.",
+                            "description": "http(s) URL of the repository. A private repository needs `skillsGitAuthSecretRef` and an https URL.",
                             "pattern": "^https?://\\S+$"
                         }
                     }
@@ -236,11 +236,24 @@
         },
         "skills": {
             "type": "array",
-            "description": "Agent skills, each pinned to an immutable source the Harness materialises for the agent. An entry is `{name, git: {url, commit}, path}` — a public http(s) git repository at a full 40- or 64-hex commit id, `path` the skill's directory within the checkout — or `{name, oci: <ref@sha256:...>}`, a digest-pinned image (`path` selects a directory within it). Rendered into the AgentTemplate's spec.skills[] as `{name, source: {git | oci, path}}`. Names are unique; exactly one of git and oci is set. A branch, a tag, a short SHA or an OCI tag fails the render with a message naming the field (the CRD refuses them at admission); the composers pin skills to a commit and re-pin them on demand. Private repositories are not supported in 1.x.",
+            "description": "Agent skills, each pinned to an immutable source the Harness materialises for the agent. An entry is `{name, git: {url, commit}, path}` — a public http(s) git repository at a full 40- or 64-hex commit id, `path` the skill's directory within the checkout — or `{name, oci: <ref@sha256:...>}`, a digest-pinned image (`path` selects a directory within it). Rendered into the AgentTemplate's spec.skills[] as `{name, source: {git | oci, path}}`. Names are unique; exactly one of git and oci is set. A branch, a tag, a short SHA or an OCI tag fails the render with a message naming the field (the CRD refuses them at admission); the composers pin skills to a commit and re-pin them on demand. A private repository needs `skillsGitAuthSecretRef` below.",
             "items": {
                 "$ref": "#/$defs/skill.schema.json"
             },
             "maxItems": 50
+        },
+        "skillsGitAuthSecretRef": {
+            "type": "object",
+            "description": "One read credential for every private git skill. The chart never creates the Secret; the tenant provisions it in the agent's namespace (on the platform: the namespace the templates are compiled in).",
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of a Secret in the agent's namespace whose key `token` holds a read token for the https hosts of the agent's private git skills — a GitHub fine-grained PAT or App installation token, a GitLab PAT (the runtime presents `x-access-token` as the username). When set, every `skills[]` entry with `git` renders `source.git.credentialRef: {name, key: token}`; OCI sources are unchanged. The runtime offers the token to that source's https host only, on challenge only — a public repository with a credential still fetches. Empty (the default) renders anonymous fetches. Requires an `https://` URL on every git skill: the CRD refuses a credential on a plain http source, and the chart fails the render first, naming the skill. Secret missing: the template's Harness condition reads `ResolvedRefs=False` (`secret \"…\" not found`), no actor boots, and it recovers when the Secret appears. Wrong token: `Ready=False ActorTemplatePending` with git's authentication error in the actor's log. Rotate the Secret's contents, never its name — a renamed Secret means editing every referencing agent, a rotated token re-boots only the referencing agents. Served by a kagent line that carries the field (giantswarm/kagent-upstream, `0.11.0-gs.x`); a kagent without it prunes the field and fetches anonymously.",
+                    "maxLength": 253,
+                    "pattern": "^$|^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+                }
+            }
         },
         "subscriptionID": {
             "type": "string"

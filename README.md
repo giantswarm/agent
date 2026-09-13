@@ -107,8 +107,44 @@ image tag fails `helm template` with a message naming the field — the same
 rule the `AgentTemplate` CRD enforces at admission, applied where the values
 are written. The agent-creation flows (agent-manager, the Dev Portal) resolve
 the branch a skill is picked from to its head commit and re-pin on request;
-the chart itself carries no branch. Private repositories are not supported in
-1.x.
+the chart itself carries no branch.
+
+### Private skill repositories
+
+One chart value covers every private git skill of an agent — authors do not
+pick a credential per skill:
+
+```yaml
+skillsGitAuthSecretRef:
+  name: kagent-skills-token   # a Secret in the agent's namespace, key `token`
+```
+
+When set, every `skills[]` entry with `git` renders
+`source.git.credentialRef: {name, key: token}`; OCI sources are unchanged. The
+runtime offers the token to that source's https host only, on challenge only,
+so a public repository with a credential still fetches. Every git skill then
+needs an `https://` URL — the CRD refuses a credential on a plain http source
+and the chart fails the render first, naming the skill.
+
+The tenant provisions the Secret in the agent's namespace (on the platform:
+the `kagent` namespace, where the templates are compiled) with the key `token`
+— a GitHub fine-grained PAT or App installation token with read access to the
+repositories, or a GitLab PAT (the runtime presents `x-access-token` as the
+username) — and labels it `ui.giantswarm.io/agent-skills-git-auth: "true"` so
+the Dev Portal can offer it. The chart never creates it. Rotate the Secret's
+contents, never its name: a renamed Secret means editing every referencing
+agent, a rotated token re-boots only the referencing agents.
+
+What an author sees when it goes wrong:
+
+| Symptom | Cause |
+|---|---|
+| Harness condition `ResolvedRefs=False` (`secret "…" not found`), no actor boots | the Secret is missing in the agent's namespace; the template recovers when it appears |
+| `Ready=False ActorTemplatePending`, git's authentication error in the actor's log | the token is wrong or lacks read access to the repository |
+
+The field is served by a kagent line that carries it (giantswarm/kagent-upstream
+`0.11.0-gs.x`, the platform's line); a kagent without it prunes the field and
+fetches anonymously.
 
 ### Readiness
 
@@ -152,7 +188,7 @@ API, and the values contract changes with it. Value by value:
 | `modelConfig.name` | unchanged | renders into `spec.modelConfig.name` |
 | `skills.refs[]` (image references) | `skills[].{name, oci}` | a digest-pinned reference `<ref>@sha256:<digest>`; a tag is refused |
 | `skills.gitRefs[]` (`{url, ref, path}`) | `skills[].{name, git: {url, commit}, path}` | a full commit id; a branch, tag or short SHA is refused; names are unique |
-| `skills.gitAuthSecretRef` | **removed** | no per-source credential in 1.x |
+| `skills.gitAuthSecretRef` (`{name}`) | `skillsGitAuthSecretRef.name` (since 1.2) | a sibling of the `skills` list; one Secret (key `token`) rendered as `credentialRef` on every git skill; every git skill needs an https URL |
 | `muster.enabled` | unchanged | gates the `RemoteMCPServer` and the binding |
 | `muster.serverRef.*` | **removed** | the chart renders the agent's own `RemoteMCPServer`, named after the agent, in its namespace |
 | `muster.allowedHeaders` | **removed** | the Harness propagates the caller's token (`KAGENT_PROPAGATE_TOKEN`) |
