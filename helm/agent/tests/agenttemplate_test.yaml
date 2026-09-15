@@ -43,6 +43,12 @@ tests:
       - equal:
           path: spec.systemPrompt
           value: You are a helpful agent.
+      - equal:
+          path: spec.context
+          value:
+            compaction:
+              tokenThreshold: 24000
+              eventRetentionSize: 4
       - notExists:
           path: spec.description
       - notExists:
@@ -763,3 +769,140 @@ tests:
       - matchRegex:
           path: metadata.labels["helm.sh/chart"]
           pattern: ^[a-zA-Z0-9][-A-Za-z0-9_.]{0,61}[a-zA-Z0-9]$
+
+  # context compaction (spec.context.compaction, kagent line 0.11.0-gs.16+)
+  - it: renders no spec.context when compaction is off
+    set:
+      context:
+        compaction:
+          enabled: false
+    asserts:
+      - notExists:
+          path: spec.context
+
+  - it: renders a custom tail-retention threshold and retained tail
+    set:
+      context:
+        compaction:
+          tokenThreshold: 40000
+          eventRetentionSize: 6
+    asserts:
+      - equal:
+          path: spec.context.compaction
+          value:
+            tokenThreshold: 40000
+            eventRetentionSize: 6
+
+  - it: renders the sliding window alone when tail retention is unset
+    set:
+      context:
+        compaction:
+          tokenThreshold: null
+          eventRetentionSize: null
+          compactionInterval: 3
+          overlapSize: 1
+    asserts:
+      - equal:
+          path: spec.context.compaction
+          value:
+            compactionInterval: 3
+            overlapSize: 1
+
+  - it: renders both strategies together
+    set:
+      context:
+        compaction:
+          compactionInterval: 5
+    asserts:
+      - equal:
+          path: spec.context.compaction
+          value:
+            tokenThreshold: 24000
+            eventRetentionSize: 4
+            compactionInterval: 5
+
+  - it: renders a dedicated summarizer model and prompt
+    set:
+      context:
+        compaction:
+          summarizer:
+            modelConfig: fast-model
+            promptTemplate: "Summarize the conversation so far.\n\n{conversation_history}"
+    asserts:
+      - equal:
+          path: spec.context.compaction.summarizer
+          value:
+            modelConfig:
+              name: fast-model
+            promptTemplate: "Summarize the conversation so far.\n\n{conversation_history}"
+
+  - it: renders no summarizer block when neither a model nor a prompt is set
+    asserts:
+      - notExists:
+          path: spec.context.compaction.summarizer
+
+  - it: fails when tokenThreshold is set without eventRetentionSize
+    set:
+      context:
+        compaction:
+          eventRetentionSize: null
+    asserts:
+      - failedTemplate:
+          errorPattern: eventRetentionSize
+
+  - it: fails when eventRetentionSize is set without tokenThreshold
+    set:
+      context:
+        compaction:
+          tokenThreshold: null
+    asserts:
+      - failedTemplate:
+          errorPattern: tokenThreshold
+
+  - it: fails when overlapSize is set without compactionInterval
+    set:
+      context:
+        compaction:
+          overlapSize: 1
+    asserts:
+      - failedTemplate:
+          errorPattern: compactionInterval
+
+  - it: fails when compaction is enabled with no strategy
+    set:
+      context:
+        compaction:
+          tokenThreshold: null
+          eventRetentionSize: null
+    asserts:
+      - failedTemplate:
+          errorPattern: neither tokenThreshold nor compactionInterval
+
+  - it: fails when the summarizer prompt lacks the conversation_history placeholder
+    set:
+      context:
+        compaction:
+          summarizer:
+            promptTemplate: Summarize it briefly.
+    asserts:
+      - failedTemplate:
+          errorPattern: conversation_history
+
+  - it: refuses a summarizer modelConfig that is not a resource name (schema)
+    set:
+      context:
+        compaction:
+          summarizer:
+            modelConfig: Bad_Name
+    asserts:
+      - failedTemplate:
+          errorPattern: summarizer/modelConfig
+
+  - it: refuses a zero tokenThreshold (schema)
+    set:
+      context:
+        compaction:
+          tokenThreshold: 0
+    asserts:
+      - failedTemplate:
+          errorPattern: tokenThreshold
