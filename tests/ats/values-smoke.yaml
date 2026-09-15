@@ -2,7 +2,7 @@
 # shape that reaches Ready on the platform Harness — a display name, an icon, a
 # description, a system prompt, a toolset with a narrowed muster binding, a
 # public git skill pinned to a commit (materialised during the golden boot),
-# extra labels and annotations. test_smoke.py asserts what these values render
+# a tail-retention compaction of its own, extra labels and annotations. test_smoke.py asserts what these values render
 # and that the template boots. Shapes that cannot boot (an OCI skill on a
 # placeholder registry, a binding to a RemoteMCPServer that does not exist)
 # are render-tested in helm/agent/tests/ instead.
@@ -19,6 +19,10 @@ muster:
   tools:
     - list_tools
     - call_tool
+context:
+  compaction:
+    tokenThreshold: 20000
+    eventRetentionSize: 6
 skills:
   - name: agent-self-awareness
     git:
