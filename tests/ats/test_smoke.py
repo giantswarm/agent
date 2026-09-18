@@ -89,6 +89,7 @@ def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Calla
     assert HARNESS_LABEL not in server["metadata"]["labels"]
     assert server["spec"]["url"] == "http://muster.agent-platform.svc.cluster.local:8090/mcp"
     assert server["spec"]["protocol"] == "STREAMABLE_HTTP"
+    assert server["spec"]["timeout"] == "90s"
     assert server["spec"]["headersFrom"] == [{"name": TOOLSET_HEADER, "value": "preset:read-only,server:mcp-kubernetes"}]
     assert not [h for h in server["spec"]["headersFrom"] if h["name"].lower() == "authorization"]
 
@@ -110,4 +111,6 @@ def test_default_values_reach_ready_with_a_remotemcpserver(kube: Kube, release: 
 
     server = wait_server_accepted(kube, DEFAULTS_RELEASE)
     assert server["metadata"]["labels"][DISCOVERY_LABEL] == "disabled"
+    # The chart's default: the longest budget a muster backend may declare, not kagent's 30 s.
+    assert server["spec"]["timeout"] == "180s"
     assert "headersFrom" not in server["spec"], server["spec"]

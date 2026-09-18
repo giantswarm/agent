@@ -19,6 +19,8 @@ muster:
   tools:
     - list_tools
     - call_tool
+  timeout: 90s
+
 context:
   compaction:
     tokenThreshold: 20000

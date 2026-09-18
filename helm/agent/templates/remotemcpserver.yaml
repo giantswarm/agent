@@ -17,6 +17,7 @@ spec:
   description: {{ include "remotemcpserver.description" . | quote }}
   url: {{ .Values.muster.url | quote }}
   protocol: STREAMABLE_HTTP
+  timeout: {{ .Values.muster.timeout }}
   {{- with include "agent.toolset.header" . }}
   headersFrom:
     - name: X-Muster-Toolset

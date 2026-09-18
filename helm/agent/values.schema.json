@@ -281,6 +281,11 @@
                     "type": "boolean",
                     "description": "Pause the agent before every tool call through muster until a person approves it. Rendered as `requireApproval: true` on the binding (kagent's human-in-the-loop): the Harness stops the task at `input-required` for each call and continues with the person's decision. It applies to the tools the binding exposes — `tools` when set, otherwise every muster tool. A client that negotiates kagent's HITL A2A extension (`https://kagent.dev/extensions/hitl/v1`) receives the structured `tool_approval_request` and answers it; one that does not sees a plain notice that human input is required. Off by default: the agent calls tools without asking."
                 },
+                "timeout": {
+                    "type": "string",
+                    "description": "How long one tool call through muster may run before the agent's runtime cancels it, rendered as given into the RemoteMCPServer's spec.timeout (a duration with a unit: `180s`, `5m`). Without the field kagent applies its own 30 s, which cuts a backend tool that legitimately runs longer — a write that creates a repository and opens a pull request in one call, a watch that blocks for minutes — although muster's own per-server budget for that backend allows more. The default matches the longest budget a muster backend declares in its spec.timeout, so a call is bounded by its backend, not by the caller.",
+                    "pattern": "^[0-9]+(ms|s|m|h)$"
+                },
                 "tools": {
                     "type": "array",
                     "description": "Set to narrow the binding to a subset of muster's meta-tools (`list_tools`, `call_tool`, ...); leave empty to bind every tool. Rendered into the binding's `tools`. A toolset is the way to narrow the tools behind the gateway. A Harness enforces a partial selection only when it can discover the server's tools; with discovery off (the default) it may expose the whole server and report a warning in the template's status.harnesses[].warnings.",
