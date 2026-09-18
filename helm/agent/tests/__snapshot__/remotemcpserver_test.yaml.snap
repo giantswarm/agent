@@ -17,4 +17,5 @@ renders the default values (golden):
     spec:
       description: muster MCP gateway of agent demo (implicit full access)
       protocol: STREAMABLE_HTTP
+      timeout: 180s
       url: http://muster.agent-platform.svc.cluster.local:8090/mcp

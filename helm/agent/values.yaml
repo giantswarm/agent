@@ -186,6 +186,17 @@ muster:
   # spec.url. The default is the platform's in-cluster URL; set it for an
   # installation whose muster is elsewhere.
   url: http://muster.agent-platform.svc.cluster.local:8090/mcp
+  # @schema type:string;pattern:^[0-9]+(ms|s|m|h)$
+  # -- How long one tool call through muster may run before the agent's
+  # runtime cancels it, rendered as given into the RemoteMCPServer's
+  # spec.timeout (a duration with a unit: `180s`, `5m`). Without the field
+  # kagent applies its own 30 s, which cuts a backend tool that legitimately
+  # runs longer — a write that creates a repository and opens a pull request
+  # in one call, a watch that blocks for minutes — although muster's own
+  # per-server budget for that backend allows more. The default matches the
+  # longest budget a muster backend declares in its spec.timeout, so a call is
+  # bounded by its backend, not by the caller.
+  timeout: 180s
   # @schema type:array;item:string;itemPattern:^\S+$;maxItems:50;uniqueItems:true
   # -- Set to narrow the binding to a subset of muster's meta-tools
   # (`list_tools`, `call_tool`, ...); leave empty to bind every tool. Rendered

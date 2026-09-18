@@ -43,6 +43,9 @@ tests:
       - equal:
           path: spec.description
           value: muster MCP gateway of agent demo (implicit full access)
+      - equal:
+          path: spec.timeout
+          value: 180s
       - notExists:
           path: spec.headersFrom
 
@@ -69,6 +72,7 @@ tests:
             description: muster MCP gateway of agent demo (implicit full access)
             url: http://muster.agent-platform.svc.cluster.local:8090/mcp
             protocol: STREAMABLE_HTTP
+            timeout: 180s
 
   - it: follows agent.name
     set:
@@ -199,6 +203,23 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: 'muster[./]url'
+
+  - it: renders muster.timeout as given
+    set:
+      muster:
+        timeout: 5m
+    asserts:
+      - equal:
+          path: spec.timeout
+          value: 5m
+
+  - it: refuses a muster.timeout without a unit
+    set:
+      muster:
+        timeout: "180"
+    asserts:
+      - failedTemplate:
+          errorPattern: 'muster[./]timeout'
 
   - it: drops the discovery opt-out label when muster.discovery.enabled is true
     set:
