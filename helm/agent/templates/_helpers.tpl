@@ -227,60 +227,6 @@ so a plain http source fails the render here, naming the skill.
 {{- end -}}
 
 {{/*
-The AgentTemplate's spec.context from .Values.context: the compaction block
-when context.compaction.enabled, nothing otherwise. Mirrors the CRD's CEL rules
-so the render fails first, naming the value: at least one strategy,
-tokenThreshold and eventRetentionSize together, overlapSize only with
-compactionInterval, a promptTemplate carrying {conversation_history}. A
-summarizer is rendered only when it names a ModelConfig or a prompt.
-*/}}
-{{- define "agent.context" -}}
-{{- $c := .Values.context.compaction -}}
-{{- if $c.enabled -}}
-  {{- $threshold := $c.tokenThreshold -}}
-  {{- $retention := $c.eventRetentionSize -}}
-  {{- $interval := $c.compactionInterval -}}
-  {{- $overlap := $c.overlapSize -}}
-  {{- if and (kindIs "invalid" $threshold) (kindIs "invalid" $interval) -}}
-    {{- fail "context.compaction is enabled but neither tokenThreshold nor compactionInterval is set: set one strategy, or context.compaction.enabled: false" -}}
-  {{- end -}}
-  {{- if ne (kindIs "invalid" $threshold) (kindIs "invalid" $retention) -}}
-    {{- fail "context.compaction.tokenThreshold and context.compaction.eventRetentionSize come together: tail retention needs both (the CRD refuses one without the other)" -}}
-  {{- end -}}
-  {{- if and (not (kindIs "invalid" $overlap)) (kindIs "invalid" $interval) -}}
-    {{- fail "context.compaction.overlapSize needs context.compaction.compactionInterval: there is no sliding window to overlap" -}}
-  {{- end -}}
-  {{- $compaction := dict -}}
-  {{- if not (kindIs "invalid" $threshold) -}}
-    {{- $_ := set $compaction "tokenThreshold" $threshold -}}
-    {{- $_ := set $compaction "eventRetentionSize" $retention -}}
-  {{- end -}}
-  {{- if not (kindIs "invalid" $interval) -}}
-    {{- $_ := set $compaction "compactionInterval" $interval -}}
-  {{- end -}}
-  {{- if not (kindIs "invalid" $overlap) -}}
-    {{- $_ := set $compaction "overlapSize" $overlap -}}
-  {{- end -}}
-  {{- $s := $c.summarizer | default dict -}}
-  {{- $summarizer := dict -}}
-  {{- with $s.modelConfig -}}
-    {{- $_ := set $summarizer "modelConfig" (dict "name" .) -}}
-  {{- end -}}
-  {{- with $s.promptTemplate -}}
-    {{- if not (contains "{conversation_history}" .) -}}
-      {{- fail "context.compaction.summarizer.promptTemplate must contain {conversation_history}, which the runtime fills with the rendered events (the CRD refuses it otherwise)" -}}
-    {{- end -}}
-    {{- $_ := set $summarizer "promptTemplate" . -}}
-  {{- end -}}
-  {{- if $summarizer -}}
-    {{- $_ := set $compaction "summarizer" $summarizer -}}
-  {{- end -}}
-compaction:
-  {{- toYaml $compaction | nindent 2 }}
-{{- end -}}
-{{- end -}}
-
-{{/*
 The curated AgentTemplate spec built from the values contract.
 */}}
 {{- define "agent.curatedSpec" -}}
@@ -289,10 +235,6 @@ description: {{ . | quote }}
 {{- end }}
 modelConfig:
   name: {{ .Values.modelConfig.name | quote }}
-{{- with (include "agent.context" . | fromYaml) }}
-context:
-  {{- toYaml . | nindent 2 }}
-{{- end }}
 systemPrompt: |-
   {{- .Values.agent.systemMessage | nindent 2 }}
 {{- with .Values.skills }}

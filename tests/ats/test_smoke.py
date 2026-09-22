@@ -70,9 +70,10 @@ def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Calla
     assert spec["modelConfig"] == {"name": "default-model-config"}
     assert spec["description"] == "Exercises the chart's field mapping on the platform's runtime."
     assert spec["systemPrompt"] == "You are the chart's smoke test. Be brief."
-    # The CRD of the pinned kagent line knows spec.context (0.11.0-gs.16+); an
-    # older CRD would prune it at admission and this would read as missing.
-    assert spec["context"] == {"compaction": {"tokenThreshold": 20000, "eventRetentionSize": 6}}
+    # context.compaction in the values renders nothing: compaction lives on the
+    # platform Harness (kagent-dev/kagent#2790), and the kagent line from 1.1.0
+    # refuses a template that carries spec.context.
+    assert "context" not in spec
     assert spec["skills"] == [
         {
             "name": "agent-self-awareness",
@@ -105,8 +106,7 @@ def test_default_values_reach_ready_with_a_remotemcpserver(kube: Kube, release: 
     assert template
     assert template["metadata"]["labels"][HARNESS_LABEL] == HARNESS
     assert template["spec"]["modelConfig"] == {"name": "default-model-config"}
-    # The chart's default: tail retention for an SRE turn, on the agent's own model.
-    assert template["spec"]["context"] == {"compaction": {"tokenThreshold": 24000, "eventRetentionSize": 4}}
+    assert "context" not in template["spec"]
     assert template["spec"]["tools"] == [{"mcp": {"server": {"kind": "RemoteMCPServer", "name": DEFAULTS_RELEASE}}}]
 
     server = wait_server_accepted(kube, DEFAULTS_RELEASE)

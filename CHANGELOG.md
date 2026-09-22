@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- `spec.context.compaction` on the rendered AgentTemplate. kagent-dev/kagent#2790 moved context compaction to `Harness.spec.kagent.compaction`, and the kagent line from `1.1.0` has no `spec.context` on the AgentTemplate: a template that carries it fails admission and the agent's HelmRelease never installs. The platform Harness carries the compaction for every admitted agent (agent-platform `kagent.harness.compaction`, the values this chart used to render). The `context.compaction` values stay accepted for existing releases and render nothing.
+
 ### Added
 
 - `muster.timeout` (a duration with a unit, default `180s`): rendered as `spec.timeout` on the agent's muster RemoteMCPServer. Without the field kagent applies its own 30 s to every tool call through muster, so a backend tool that legitimately runs longer — a write that creates a repository, pushes a scaffold and opens a pull request in one call, a watch that blocks for minutes — is cancelled by the caller at 30 s and comes back as a transport error, although muster's own per-server budget for that backend allows 180 s. The default matches the longest budget a muster backend declares, so a call is bounded by its backend's `spec.timeout`, not by an accidental caller default; the schema refuses a value without a unit (giantswarm/agent#39).
