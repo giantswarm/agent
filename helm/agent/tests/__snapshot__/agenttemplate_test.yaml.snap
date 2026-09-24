@@ -15,10 +15,6 @@ renders the default values (golden):
       name: demo
       namespace: demo-ns
     spec:
-      context:
-        compaction:
-          eventRetentionSize: 4
-          tokenThreshold: 24000
       modelConfig:
         name: default-model-config
       systemPrompt: You are a helpful agent.

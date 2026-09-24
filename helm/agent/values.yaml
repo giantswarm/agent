@@ -55,13 +55,13 @@ modelConfig:
   # Rendered into the AgentTemplate's spec.modelConfig.name.
   name: default-model-config
 
-# -- How the runtime manages the conversation context while a turn runs.
-# Rendered into the AgentTemplate's spec.context (kagent API v2). The kagent
-# Harness (the Go ADK runtime) applies it to the agent; the Claude and Codex
-# harnesses report it as ignored in the template's status warnings. Served by
-# a kagent line that carries the field (giantswarm/kagent-upstream `0.11.0-gs.16`
-# and later); an older kagent prunes it at admission and the history stays
-# uncompacted, in silence.
+# -- Kept for the values of existing releases; rendered into nothing. Context
+# compaction moved from the AgentTemplate to the platform Harness
+# (kagent-dev/kagent#2790; Harness.spec.kagent.compaction, set by the platform
+# as kagent.harness.compaction), where it applies to every agent the Harness
+# admits. The kagent line from 1.1.0 has no spec.context on the AgentTemplate,
+# and a template that carries it is refused at admission. Everything under
+# this key is ignored.
 context:
   # -- Compaction keeps the prompt bounded as a turn grows. Without it every
   # tool result stays in the history verbatim and every later model call of
