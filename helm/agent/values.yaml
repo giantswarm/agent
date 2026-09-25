@@ -25,7 +25,9 @@ agent:
   # so it cannot become a description.
   displayName: ""
   # @schema type:string
-  # -- Rendered into the AgentTemplate's spec.description.
+  # -- Rendered into the AgentTemplate's spec.description. It shares the
+  # compiled agent config's size budget with the system prompt (see
+  # systemMessage), so keep it to a few sentences.
   description: ""
   # @schema type:string
   # -- Fully qualified URL of the agent's avatar icon. Rendered as the
@@ -33,9 +35,13 @@ agent:
   # no icon field); the Dev Portal reads it. Populated by the agent-creation
   # flows with the canonical avatar URL.
   iconUrl: ""
-  # @schema type:string;minLength:1
+  # 20000 characters leaves room in Substrate's 32768-character limit for the
+  # JSON escaping of the prompt and the rest of the compiled agent config.
+  # @schema type:string;minLength:1;maxLength:20000
   # -- The agent's system prompt. Rendered into the AgentTemplate's
-  # spec.systemPrompt.
+  # spec.systemPrompt. At most 20000 characters; move long reference material
+  # into a skill. A prompt heavy in `<`, `>` or `&` can still exceed the
+  # runtime limit under this cap, and the AgentTemplate then reports why.
   systemMessage: |
     You are a helpful agent.
   # @schema type:string;minLength:1;maxLength:63;pattern:^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
