@@ -82,7 +82,7 @@
             "properties": {
                 "description": {
                     "type": "string",
-                    "description": "Rendered into the AgentTemplate's spec.description."
+                    "description": "Rendered into the AgentTemplate's spec.description. It shares the compiled agent config's size budget with the system prompt (see systemMessage), so keep it to a few sentences."
                 },
                 "displayName": {
                     "type": "string",
@@ -108,7 +108,8 @@
                 },
                 "systemMessage": {
                     "type": "string",
-                    "description": "The agent's system prompt. Rendered into the AgentTemplate's spec.systemPrompt.",
+                    "description": "The agent's system prompt. Rendered into the AgentTemplate's spec.systemPrompt. At most 20000 characters; move long reference material into a skill. A prompt heavy in `<`, `>` or `&` can still exceed the runtime limit under this cap, and the AgentTemplate then reports why.",
+                    "maxLength": 20000,
                     "minLength": 1
                 }
             }

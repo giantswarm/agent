@@ -398,6 +398,21 @@ tests:
       - failedTemplate:
           errorPattern: 'skills'
 
+  # system prompt size
+  - it: accepts a systemMessage at its cap, counted in characters
+    values:
+      - values/system-message-at-cap.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: refuses a systemMessage past its cap
+    values:
+      - values/system-message-over-cap.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]systemMessage'
+
   # tools
   - it: narrows the binding with muster.tools
     set:
