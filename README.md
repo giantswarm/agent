@@ -4,15 +4,16 @@
 
 The generic Helm chart for creating [kagent](https://kagent.dev) agents on the
 Giant Swarm Agent Platform. **One chart release = one agent**: the chart
-renders the agent's `AgentTemplate` (`kagent.dev/v1alpha3`) — what the agent
-*is*: prompt, model, skills, tools — and, unless the agent is chat-only, the
-agent's own muster `RemoteMCPServer`, the carrier of its toolset. How the agent
-*runs* is the platform's `Harness`, which admits the template by label.
+renders the agent's `Agent` (`api.kagent.dev/v1alpha3`) with its template
+inline (`spec.template`: what the agent *is*: prompt, model, skills, plugins,
+tools) and the platform `Harness` referenced by name
+(`spec.harnessRef`: how it *runs*), and, unless the agent is chat-only, the
+agent's own muster `RemoteMCPServer`, the carrier of its toolset.
 
 Design and decision history live in the
 [Creating agents PRD](https://github.com/giantswarm/bumblebee-plans/blob/main/creating-agents/PRD.md)
 (epic: [giantswarm/giantswarm#36796](https://github.com/giantswarm/giantswarm/issues/36796))
-and, for the kagent API v2 shape of chart 1.x, in the migration plan
+and, for the kagent API v2 shape of chart 1.x and 2.x, in the migration plan
 [bumblebee-plans#51](https://github.com/giantswarm/bumblebee-plans/pull/51)
 (epic: [giantswarm/giantswarm#37705](https://github.com/giantswarm/giantswarm/issues/37705)).
 
@@ -20,27 +21,29 @@ and, for the kagent API v2 shape of chart 1.x, in the migration plan
 
 The chart renders, in the release namespace and named after the agent:
 
-- the **`AgentTemplate`** — description, system prompt, the `ModelConfig` by
-  name, the skills (immutable sources), the tool bindings. It carries the
-  Harness admission label `agent-platform.giantswarm.io/harness` (value:
-  `agent.harness`, default `kagent`) and the annotations
-  `ui.giantswarm.io/display-name` and `ui.giantswarm.io/icon-url` the Dev
-  Portal reads;
+- the **`Agent`**: `spec.template` carries the description, the system
+  prompt, the `ModelConfig` by name, the skills and plugins (immutable
+  sources) and the tool bindings; `spec.harnessRef`
+  names the Harness that runs it (`agent.harness`, default `kagent`). The
+  object carries the annotations `ui.giantswarm.io/display-name` and
+  `ui.giantswarm.io/icon-url` the Dev Portal reads. No admission label: the
+  Agent selects its Harness, the Harness admits nothing;
 - the **`RemoteMCPServer`** pointing at muster's MCP endpoint (`muster.url`),
   `STREAMABLE_HTTP`, with the agent's toolset as the static `X-Muster-Toolset`
   header and the label `kagent.dev/discovery: disabled` (muster is an OAuth
   resource server; the controller has no user token to discover tools with).
   Never an `Authorization` header: the Harness propagates the signed-in
-  person's token, and a static header would override it. The template binds
-  this server. Not rendered for a chat-only agent (`toolset: ["preset:none"]`)
+  person's token, and a static header would override it. The Agent's template
+  binds this server. Not rendered for a chat-only agent (`toolset: ["preset:none"]`)
   or with `muster.enabled: false`.
 
 It never touches:
 
 - the **`Harness`** — platform-owned (rendered by the agent-platform
   connectivity chart); it decides the runtime image, the token propagation,
-  the Substrate worker pool, capacity and placement. A template no Harness
-  admits is created and never becomes Ready;
+  the Substrate worker pool, capacity and placement. An Agent whose Harness
+  does not exist in its namespace reports `ResolvedRefs=False` and never
+  becomes Ready;
 - **`ModelConfig`** CRs and the `Secret`s they reference (LLM credentials) —
   platform-owned, provisioned per tenant namespace. The chart wires the agent
   to one **by name** (`modelConfig.name`, default `default-model-config`).
@@ -96,40 +99,62 @@ plan behind it is the
 (`list_tools`, `call_tool`, ...), not the tools behind the gateway — a toolset
 is the way to narrow those. A Harness enforces a partial selection only when
 it can discover the server's tools; with discovery off (the default) it may
-expose the whole server and report a warning in the template's
-`status.harnesses[].warnings`.
+expose the whole server and report a warning in the Agent's
+`status.warnings`.
 
 ### Skills are pinned
 
 A skill source is immutable: a git repository at a full 40- or 64-hex commit
 id, or an image at a `@sha256:` digest. A branch, a tag, a short SHA or an
 image tag fails `helm template` with a message naming the field — the same
-rule the `AgentTemplate` CRD enforces at admission, applied where the values
-are written. The agent-creation flows (agent-manager, the Dev Portal) resolve
+rule the `Agent` CRD enforces at admission, applied where the values are
+written. The agent-creation flows (agent-manager, the Dev Portal) resolve
 the branch a skill is picked from to its head commit and re-pin on request;
 the chart itself carries no branch.
 
+### Plugins
+
+A plugin is an Agent Plugins bundle: one immutable source (pinned like a
+skill) and the names of the bundle's skills to enable. Nothing else in the
+bundle reaches the agent:
+
+```yaml
+plugins:
+  - git:
+      url: https://github.com/example/agent-plugins
+      commit: 0123456789abcdef0123456789abcdef01234567
+    path: bundles/sre
+    skills: [triage, postmortem]
+  - oci: registry.example.io/plugins/sre@sha256:<digest>
+    skills: [k8s]
+```
+
+Rendered into `spec.template.plugins[]` as `{source: {git | oci, path},
+skills}`. The schema refuses an entry without a source, with two sources, with
+a mutable source or without at least one skill name.
+
 ### Private skill repositories
 
-One chart value covers every private git skill of an agent — authors do not
-pick a credential per skill:
+One chart value covers every private git skill and git plugin of an agent;
+authors do not pick a credential per skill:
 
 ```yaml
 skillsGitAuthSecretRef:
   name: kagent-skills-token   # a Secret in the agent's namespace, key `token`
 ```
 
-When set, every `skills[]` entry with `git` renders
+When set, every `skills[]` and `plugins[]` entry with `git` renders
 `source.git.credentialRef: {name, key: token}`; OCI sources are unchanged.
-Every git skill then needs an `https://` URL — the CRD refuses a credential on
-any other source and the chart fails the render first, naming the skill. The
+Every git skill and plugin then needs an `https://` URL: the CRD refuses a
+credential on any other source and the chart fails the render first, naming
+the entry. The
 platform side of the contract (the egress gateway, the credential provider,
 agent-manager's minted Secret) is agent-platform's
 [Private skill repositories](https://github.com/giantswarm/agent-platform#the-kagent-line)
 (under "The kagent line").
 
 - **Who provisions it, where.** The tenant, in the agent's namespace (on the
-  platform: the `kagent` namespace, where the templates are compiled), labelled
+  platform: the `kagent` namespace, where the agents are compiled), labelled
   `ui.giantswarm.io/agent-skills-git-auth: "true"` so the Dev Portal offers it;
   or agent-manager, which mints and refreshes `agent-manager-skills-token` from
   its skills GitHub App when the installation turns that on. The chart never
@@ -146,11 +171,11 @@ agent-manager's minted Secret) is agent-platform's
   new name is an edit of every referencing agent and a new revision of each.
 - **Where the token is visible.** In the Secret, to whoever may read Secrets in
   its namespace, and to the platform's credential provider and egress gateway,
-  which send it to the source's host over TLS. Not in the `AgentTemplate`, the
+  which send it to the source's host over TLS. Not in the `Agent`, the
   actor's environment (it holds a placeholder) or the snapshots.
 
-What an author sees when it goes wrong (the template's conditions, per Harness
-— see [Readiness](#readiness)):
+What an author sees when it goes wrong (the Agent's conditions, see
+[Readiness](#readiness)):
 
 | Symptom | Cause |
 |---|---|
@@ -162,17 +187,16 @@ platform's line), where the egress gateway injects the credential.
 
 ### Readiness
 
-The template's readiness is reported per admitting Harness:
+The Agent reports its own readiness on the Harness it names:
 
 ```bash
-kubectl -n <namespace> get agenttemplate <name> -o jsonpath='{.status.harnesses}'
+kubectl -n <namespace> get agent.api.kagent.dev <name> -o jsonpath='{.status}'
 ```
 
 Conditions `Accepted`, `ResolvedRefs`, `Compatible` and `Ready`, with
-`desiredRevision` against `latestSuccessfulRevision` and `warnings`. An empty
-`status.harnesses` with `observedGeneration` caught up means no Harness admits
-the template — check the label `agent-platform.giantswarm.io/harness` against
-the platform Harness's selector.
+`desiredRevision` against `latestSuccessfulRevision` and `warnings`.
+`ResolvedRefs=False` naming the Harness means `agent.harness` names a Harness
+that does not exist in the agent's namespace.
 
 ### Values
 
@@ -180,11 +204,33 @@ See the [chart values reference](helm/agent/README.md) for all available values
 and their defaults.
 
 `values.schema.json` encodes the curated contract (`additionalProperties:
-false`), so bad values — including every 0.x value that has no place in 1.x —
+false`), so bad values (including every 0.x value that has no place in 2.x)
 fail with a legible error before anything hits the cluster.
 
 Upgrades are values changes plus a re-apply; uninstalling the release removes
 the agent. Pin the chart version for reproducibility.
+
+## Migrating from 1.x
+
+Chart 2.0 renders the kagent API that ships the `Agent` kind
+(`api.kagent.dev/v1alpha3`, kagent-dev/kagent#2952): one `Agent` named after
+the release, the template inline under `spec.template`, the Harness by name in
+`spec.harnessRef`, plus the per-agent `RemoteMCPServer` in the new group. No
+`kagent.dev/v1alpha3 AgentTemplate` is rendered, and the admission label is
+gone with `Harness.spec.allowedAgentTemplates`. The chart installs only on a
+platform that serves `api.kagent.dev`; an upgrade of a 1.x release replaces
+the `AgentTemplate` with an `Agent` of the same name. The values contract is
+the 1.x one plus `plugins`:
+
+| 1.x value | 2.x | What changed |
+|---|---|---|
+| `agent.harness` | same name, default `kagent` | now `spec.harnessRef.name`, a reference the Agent resolves in its namespace; the label `agent-platform.giantswarm.io/harness` is no longer rendered and no Harness selector is involved |
+| `agent.name`, `agent.displayName`, `agent.description`, `agent.iconUrl`, `agent.systemMessage`, `modelConfig.name`, `skills`, `skillsGitAuthSecretRef`, `muster.*`, `toolset` | unchanged | the template fields move under `spec.template`; the annotations stay on the object |
+| — | `plugins[]` (new, empty) | `{git \| oci, path, skills[]}` entries rendered into `spec.template.plugins[]`; same pinning rules and credential as `skills` |
+| `extraTools` | same list | a sub-agent binding is `{subAgent: {name, description, templateRef}}` instead of `{agent: {...}}` |
+| `extraAgentSpec` | unchanged | deep-merges into `spec.template` only, never into `spec.harnessRef` |
+| `labels` | unchanged | an extra `agent-platform.giantswarm.io/harness` label is rendered as given and means nothing to the platform |
+| `context.compaction` | unchanged | still accepted, still renders nothing |
 
 ## Migrating from 0.x
 

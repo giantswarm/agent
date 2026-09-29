@@ -7,8 +7,8 @@ Expand the name of the chart.
 {{- end -}}
 
 {{/*
-Technical name of the agent: the AgentTemplate and its RemoteMCPServer.
-Defaults to the release name.
+Technical name of the agent: the Agent and its RemoteMCPServer. Defaults to
+the release name.
 */}}
 {{- define "agent.name" -}}
 {{- default .Release.Name .Values.agent.name | trunc 63 | trimSuffix "-" -}}
@@ -65,17 +65,6 @@ merged over it (the extra labels win).
 {{- end -}}
 
 {{/*
-Labels of the AgentTemplate: the shared set plus the Harness admission label
-agent-platform.giantswarm.io/harness, valued by agent.harness. Extra labels
-merge over it, so a deliberately different admission label is still one value
-away.
-*/}}
-{{- define "agenttemplate.labels" -}}
-{{- $labels := dict "agent-platform.giantswarm.io/harness" .Values.agent.harness -}}
-{{- toYaml (mustMergeOverwrite $labels (fromYaml (include "agent.labels" .))) -}}
-{{- end -}}
-
-{{/*
 Labels of the RemoteMCPServer: the shared set plus the discovery opt-out
 kagent.dev/discovery=disabled unless muster.discovery.enabled is true. The
 opt-out is the chart's decision, so it wins over an extra label of the same
@@ -90,11 +79,11 @@ name.
 {{- end -}}
 
 {{/*
-Annotations of the AgentTemplate: ui.giantswarm.io/display-name and
+Annotations of the Agent: ui.giantswarm.io/display-name and
 ui.giantswarm.io/icon-url from agent.displayName / agent.iconUrl (when set),
 next to .Values.annotations. Empty when there is nothing to render.
 */}}
-{{- define "agenttemplate.annotations" -}}
+{{- define "agent.annotations" -}}
 {{- $annotations := deepCopy .Values.annotations -}}
 {{- with .Values.agent.displayName -}}
 {{- $_ := set $annotations "ui.giantswarm.io/display-name" . -}}
@@ -192,11 +181,41 @@ image, relative path) is the schema's job. Fails the render naming the entry.
 {{- end -}}
 
 {{/*
-The AgentTemplate's spec.skills: every value entry {name, git|oci, path} as a
+One immutable artifact source {git|oci, path} from a value entry {git|oci,
+path}. Context: dict "entry", "field" (the value path, for the failure
+message) and "credential" (skillsGitAuthSecretRef.name). With a credential,
+every git source carries credentialRef {name, key: token}; the CRD admits a
+credential on an https URL only, so a plain http source fails the render here,
+naming the entry.
+*/}}
+{{- define "agent.artifactSource" -}}
+{{- $entry := .entry -}}
+{{- with $entry.git }}
+git:
+  url: {{ .url | quote }}
+  commit: {{ .commit | quote }}
+  {{- if $.credential }}
+  {{- if not (hasPrefix "https://" .url) }}
+    {{- fail (printf "%s: skillsGitAuthSecretRef.name is set, so every git source needs an https:// URL (the credential is offered to the source's https host only); got %q" $.field .url) }}
+  {{- end }}
+  credentialRef:
+    name: {{ $.credential | quote }}
+    key: token
+  {{- end }}
+{{- end }}
+{{- with $entry.oci }}
+oci: {{ . | quote }}
+{{- end }}
+{{- with $entry.path }}
+path: {{ . | quote }}
+{{- end }}
+{{- end -}}
+
+{{/*
+The template's spec.skills: every value entry {name, git|oci, path} as a
 {name, source: {git|oci, path}} item. With skillsGitAuthSecretRef.name set,
-every git source carries credentialRef {name, key: token} — the one credential
-fans out to every git skill; the CRD admits a credential on an https URL only,
-so a plain http source fails the render here, naming the skill.
+every git source carries credentialRef {name, key: token} (one credential fans
+out to every git skill).
 */}}
 {{- define "agent.skills" -}}
 {{- include "agent.skills.validate" . -}}
@@ -204,30 +223,28 @@ so a plain http source fails the render here, naming the skill.
 {{- range $i, $skill := .Values.skills }}
 - name: {{ $skill.name | quote }}
   source:
-    {{- with $skill.git }}
-    git:
-      url: {{ .url | quote }}
-      commit: {{ .commit | quote }}
-      {{- if $credential }}
-      {{- if not (hasPrefix "https://" .url) }}
-        {{- fail (printf "skills[%d] %q: skillsGitAuthSecretRef.name is set, so every git skill needs an https:// URL (the credential is offered to the source's https host only); got %q" $i $skill.name .url) }}
-      {{- end }}
-      credentialRef:
-        name: {{ $credential | quote }}
-        key: token
-      {{- end }}
-    {{- end }}
-    {{- with $skill.oci }}
-    oci: {{ . | quote }}
-    {{- end }}
-    {{- with $skill.path }}
-    path: {{ . | quote }}
-    {{- end }}
+    {{- include "agent.artifactSource" (dict "entry" $skill "field" (printf "skills[%d] %q" $i $skill.name) "credential" $credential) | nindent 4 }}
 {{- end }}
 {{- end -}}
 
 {{/*
-The curated AgentTemplate spec built from the values contract.
+The template's spec.plugins: every value entry {git|oci, path, skills} as a
+{source: {git|oci, path}, skills} item. The same credential as the skills
+reaches every git plugin.
+*/}}
+{{- define "agent.plugins" -}}
+{{- $credential := (.Values.skillsGitAuthSecretRef | default dict).name -}}
+{{- range $i, $plugin := .Values.plugins }}
+- source:
+    {{- include "agent.artifactSource" (dict "entry" $plugin "field" (printf "plugins[%d]" $i) "credential" $credential) | nindent 4 }}
+  skills:
+    {{- toYaml $plugin.skills | nindent 4 }}
+{{- end }}
+{{- end -}}
+
+{{/*
+The curated template spec (the Agent's spec.template) built from the values
+contract.
 */}}
 {{- define "agent.curatedSpec" -}}
 {{- with .Values.agent.description }}
@@ -240,6 +257,10 @@ systemPrompt: |-
 {{- with .Values.skills }}
 skills:
   {{- include "agent.skills" $ | nindent 2 }}
+{{- end }}
+{{- with .Values.plugins }}
+plugins:
+  {{- include "agent.plugins" $ | nindent 2 }}
 {{- end }}
 {{- $muster := include "agent.musterBinding" . -}}
 {{- if or $muster .Values.extraTools }}
@@ -264,8 +285,8 @@ tools:
 {{- end -}}
 
 {{/*
-The final AgentTemplate spec: extraAgentSpec deep-merged over the curated
-spec, with the escape hatch winning on conflicts.
+The final template spec: extraAgentSpec deep-merged over the curated spec,
+with the escape hatch winning on conflicts.
 */}}
 {{- define "agent.spec" -}}
 {{- $curated := fromYaml (include "agent.curatedSpec" .) -}}

@@ -6,8 +6,8 @@
 #
 # The smoke runs on the platform's real runtime: the kagent line and Agent
 # Substrate are up on the cluster before a release of this chart, and a release
-# is Ready when its AgentTemplate is admitted by the platform Harness, compiled
-# and booted once on a gVisor worker (status.harnesses[].Ready). ATS deploys
+# is Ready when its Agent resolves the platform Harness, is compiled and booted
+# once on a gVisor worker (the Agent's Ready condition). ATS deploys
 # nothing itself (app-tests-skip-app-deploy): tests/ats/conftest.py brings the
 # runtime up — the Substrate bootstrap (a Job), the substrate chart, the kagent
 # chart, the Harness — and installs the releases (each scenario's module
@@ -20,8 +20,8 @@
 #               RemoteMCPServer.
 #   functional  test_chat_only.py: toolset ["preset:none"] reaches Ready with no
 #               RemoteMCPServer. test_fail_fast.py: the readiness wait answers
-#               in seconds, with the reason, for a template no Harness admits,
-#               for a Harness on a WorkerPool without a ready worker, and for
+#               in seconds, with the reason, for an Agent whose Harness does
+#               not exist, for a Harness on a WorkerPool without a ready worker, and for
 #               a Harness whose image the registry refuses (Substrate crashes
 #               the golden actor with the registry's answer).
 #
@@ -35,7 +35,7 @@
 # ranges), published to gsoci.azurecr.io.
 #
 # `cluster-crds` below applies the CRDs of both lines from those tags before
-# anything else runs: the five kagent.dev CRDs (helm/kagent-crds/templates/,
+# anything else runs: the six api.kagent.dev CRDs (helm/kagent-crds/templates/,
 # plain YAML, byte-identical to the controller's CRD bases) and the three
 # ate.dev CRDs (charts/substrate-crds/templates/). ATS takes ONE value and hands
 # it to kubectl as is; kubectl's -f splits on commas, so the URLs are ONE
@@ -49,7 +49,7 @@
 # lines as one PR that moves all pins together: the tags in the URLs below,
 # KAGENT_LINE with the golang-adk image digest HARNESS_IMAGE, and
 # SUBSTRATE_LINE (the worker image follows). By hand: (1) put the next kagent
-# tag into the five kagent-upstream URLs below and into KAGENT_LINE, and the
+# tag into the six kagent-upstream URLs below and into KAGENT_LINE, and the
 # image index digest `crane digest gsoci.azurecr.io/giantswarm/kagent/golang-adk:<tag>`
 # reports into HARNESS_IMAGE; (2) put the next Substrate tag into the three
 # substrate URLs below and into SUBSTRATE_LINE.
@@ -58,6 +58,6 @@
 #
 # upgrade stays skipped: 0.x -> 1.0 is a breaking change of the values.
 # yamllint disable-line rule:line-length
-cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.5/helm/kagent-crds/templates/kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.5/helm/kagent-crds/templates/kagent.dev_harnesses.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.5/helm/kagent-crds/templates/kagent.dev_modelconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.5/helm/kagent-crds/templates/kagent.dev_modelproviderconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.5/helm/kagent-crds/templates/kagent.dev_remotemcpservers.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_csidriverconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_sandboxconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_workerpools.yaml
+cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_agents.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_harnesses.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_modelconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_modelproviderconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_remotemcpservers.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_csidriverconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_sandboxconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_workerpools.yaml
 app-tests-skip-app-deploy: true
 skip-steps: [upgrade]

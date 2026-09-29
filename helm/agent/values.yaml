@@ -1,12 +1,13 @@
 # yaml-language-server: $schema=values.schema.json
 # Default values for the agent chart.
 #
-# One chart release = one agent. The chart renders a kagent AgentTemplate
-# (kagent.dev/v1alpha3: what the agent is — prompt, model, skills, tools) and,
-# unless the agent is chat-only, one muster RemoteMCPServer named after the
-# agent that carries its toolset. How the agent runs is the platform's Harness,
-# which admits the template by label. The chart never renders a ModelConfig, a
-# Secret or a Harness — those are platform-owned and referenced by name.
+# One chart release = one agent. The chart renders one kagent Agent
+# (api.kagent.dev/v1alpha3) whose template is inline (spec.template: what the
+# agent is, prompt, model, skills, plugins, tools) and whose Harness is
+# referenced by name (spec.harnessRef: how it runs), and, unless the agent is
+# chat-only, one muster RemoteMCPServer named after the agent that carries its
+# toolset. The chart never renders a ModelConfig, a Secret or a Harness: those
+# are platform-owned and referenced by name.
 #
 # values.schema.json is generated from the # @schema annotations in this file
 # (and skill.schema.json for the skills entries) by the helm-schema pre-commit
@@ -16,40 +17,41 @@
 # -- Identity and prompt of the agent.
 agent:
   # @schema type:string;maxLength:63;pattern:^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-  # -- Technical resource name (DNS-1123) of the AgentTemplate and of its
+  # -- Technical resource name (DNS-1123) of the Agent and of its
   # RemoteMCPServer. Defaults to the Helm release name.
   name: ""
   # @schema type:string;maxLength:63
   # -- Human-friendly name, Unicode allowed. Rendered as the
-  # ui.giantswarm.io/display-name annotation on the AgentTemplate. Size-limited
+  # ui.giantswarm.io/display-name annotation on the Agent. Size-limited
   # so it cannot become a description.
   displayName: ""
   # @schema type:string
-  # -- Rendered into the AgentTemplate's spec.description. It shares the
+  # -- Rendered into the Agent's spec.template.description. It shares the
   # compiled agent config's size budget with the system prompt (see
   # systemMessage), so keep it to a few sentences.
   description: ""
   # @schema type:string
   # -- Fully qualified URL of the agent's avatar icon. Rendered as the
-  # ui.giantswarm.io/icon-url annotation on the AgentTemplate (the template has
-  # no icon field); the Dev Portal reads it. Populated by the agent-creation
+  # ui.giantswarm.io/icon-url annotation on the Agent (the template has no icon
+  # field); the Dev Portal reads it. Populated by the agent-creation
   # flows with the canonical avatar URL.
   iconUrl: ""
   # 20000 characters leaves room in Substrate's 32768-character limit for the
   # JSON escaping of the prompt and the rest of the compiled agent config.
   # @schema type:string;minLength:1;maxLength:20000
-  # -- The agent's system prompt. Rendered into the AgentTemplate's
-  # spec.systemPrompt. At most 20000 characters; move long reference material
-  # into a skill. A prompt heavy in `<`, `>` or `&` can still exceed the
-  # runtime limit under this cap, and the AgentTemplate then reports why.
+  # -- The agent's system prompt. Rendered into the Agent's
+  # spec.template.systemPrompt. At most 20000 characters; move long reference
+  # material into a skill. A prompt heavy in `<`, `>` or `&` can still exceed
+  # the runtime limit under this cap, and the Agent then reports why.
   systemMessage: |
     You are a helpful agent.
   # @schema type:string;minLength:1;maxLength:63;pattern:^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-  # -- Name of the platform Harness that runs the agent. Rendered as the label
-  # `agent-platform.giantswarm.io/harness` on the AgentTemplate — the label the
-  # Harness's allowedAgentTemplates selector matches. The platform ships the
-  # `kagent` Harness (the Go ADK runtime); a template no Harness admits is
-  # created and never becomes Ready.
+  # -- Name of the platform Harness that runs the agent, in the agent's
+  # namespace. Rendered into the Agent's spec.harnessRef.name; the Agent
+  # selects its Harness, no label and no Harness-side selector is involved.
+  # The platform ships the `kagent` Harness (the Go ADK runtime); an Agent
+  # whose Harness does not exist reports `ResolvedRefs=False` and never
+  # becomes Ready.
   harness: kagent
 
 # -- Which platform-provisioned ModelConfig the agent uses, referenced by name.
@@ -58,11 +60,11 @@ agent:
 modelConfig:
   # @schema type:string;minLength:1
   # -- Name of the platform-provisioned ModelConfig in the agent's namespace.
-  # Rendered into the AgentTemplate's spec.modelConfig.name.
+  # Rendered into the Agent's spec.template.modelConfig.name.
   name: default-model-config
 
 # -- Kept for the values of existing releases; rendered into nothing. Context
-# compaction moved from the AgentTemplate to the platform Harness
+# compaction moved from the agent's template to the platform Harness
 # (kagent-dev/kagent#2790; Harness.spec.kagent.compaction, set by the platform
 # as kagent.harness.compaction), where it applies to every agent the Harness
 # admits. The kagent line from 1.1.0 has no spec.context on the AgentTemplate,
@@ -146,40 +148,52 @@ context:
 # a public http(s) git repository at a full 40- or 64-hex commit id, `path` the
 # skill's directory within the checkout — or `{name, oci: <ref@sha256:...>}`, a
 # digest-pinned image (`path` selects a directory within it). Rendered into the
-# AgentTemplate's spec.skills[] as `{name, source: {git | oci, path}}`. Names
+# Agent's spec.template.skills[] as `{name, source: {git | oci, path}}`. Names
 # are unique; exactly one of git and oci is set. A branch, a tag, a short SHA
 # or an OCI tag fails the render with a message naming the field (the CRD
 # refuses them at admission); the composers pin skills to a commit and re-pin
 # them on demand. A private repository needs `skillsGitAuthSecretRef` below.
 skills: []
 
-# -- One read credential for every private git skill. The chart never creates
-# the Secret; the tenant provisions it in the agent's namespace (on the
-# platform: the namespace the templates are compiled in), or agent-manager
+# @schema type:array;itemRef:plugin.schema.json;maxItems:20
+# -- (list) Agent Plugins bundles, each pinned to an immutable source like a
+# skill, with the skills to enable from the bundle. An entry is `{git: {url,
+# commit}, path, skills: [...]}` or `{oci: <ref@sha256:...>, path, skills:
+# [...]}`; `skills` names the bundle's skills to enable (at least one, unique)
+# and is the only selection: a plugin enables nothing else. Rendered into the
+# Agent's spec.template.plugins[] as `{source: {git | oci, path}, skills}`.
+# The pinning rules of `skills` apply (a branch, a tag, a short SHA or an OCI
+# tag fails the render), and `skillsGitAuthSecretRef` reaches every git plugin
+# the way it reaches every git skill.
+plugins: []
+
+# -- One read credential for every private git skill and git plugin. The chart
+# never creates the Secret; the tenant provisions it in the agent's namespace
+# (on the platform: the namespace the agents are compiled in), or agent-manager
 # mints it.
 skillsGitAuthSecretRef:
   # @schema type:string;maxLength:253;pattern:^$|^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$
   # -- Name of a Secret in the agent's namespace whose key `token` holds
   # `base64("<username>:<token>")` (on GitHub `x-access-token:<token>`) with
-  # read access to the agent's private git skills; the egress gateway sends it
-  # as `Authorization: Basic` to every request to that host, public
-  # repositories included. When set, every `skills[]` entry with `git` renders
-  # `source.git.credentialRef: {name, key: token}`; OCI sources are unchanged.
-  # Empty (the default) renders anonymous fetches. Requires an `https://` URL
-  # on every git skill: the CRD refuses a credential on any other source, and
-  # the chart fails the render first, naming the skill. Rotate the Secret's
-  # contents, never its name. Needs the kagent line 1.1.0 or later. The full
+  # read access to the agent's private git skills and plugins; the egress
+  # gateway sends it as `Authorization: Basic` to every request to that host,
+  # public repositories included. When set, every `skills[]` and `plugins[]`
+  # entry with `git` renders `source.git.credentialRef: {name, key: token}`;
+  # OCI sources are unchanged. Empty (the default) renders anonymous fetches.
+  # Requires an `https://` URL on every git skill and plugin: the CRD refuses a
+  # credential on any other source, and the chart fails the render first,
+  # naming the entry. Rotate the Secret's contents, never its name. The full
   # contract and its failure modes: the README's "Private skill repositories".
   name: ""
 
 # -- The platform's muster MCP gateway. Unless the agent is chat-only (toolset
 # exactly `["preset:none"]`) or `enabled` is false, the chart renders a
 # RemoteMCPServer named after the agent that points at muster and carries the
-# toolset header, and binds it into the AgentTemplate's tools.
+# toolset header, and binds it into the Agent's spec.template.tools.
 muster:
   # @schema type:boolean
   # -- Wire muster into the agent's tools: render the agent's RemoteMCPServer
-  # and bind it in the AgentTemplate.
+  # and bind it in the Agent's template.
   enabled: true
   # @schema type:string;pattern:^https?://\S+$
   # -- URL of muster's MCP endpoint, rendered into the RemoteMCPServer's
@@ -203,8 +217,7 @@ muster:
   # into the binding's `tools`. A toolset is the way to narrow the tools behind
   # the gateway. A Harness enforces a partial selection only when it can
   # discover the server's tools; with discovery off (the default) it may expose
-  # the whole server and report a warning in the template's
-  # status.harnesses[].warnings.
+  # the whole server and report a warning in the Agent's status.warnings.
   tools: []
   # @schema type:boolean
   # -- Pause the agent before every tool call through muster until a person
@@ -249,24 +262,27 @@ muster:
 toolset:
 
 # @schema type:array
-# -- Additional raw kagent.dev/v1alpha3 tool bindings appended after the muster
-# binding: `{mcp: {server: {kind: RemoteMCPServer, name}, tools,
-# requireApproval}}` or `{agent: {name, description, templateRef: {name}}}`.
-# Servers and templates are referenced in the agent's own namespace.
+# -- Additional raw api.kagent.dev/v1alpha3 tool bindings appended after the
+# muster binding: `{mcp: {server: {kind: RemoteMCPServer, name}, tools,
+# requireApproval}}` or `{subAgent: {name, description, templateRef: {name}}}`
+# (`agentRef` in place of `templateRef` names an Agent; the runtime does not
+# compile it yet). Servers, templates and agents are referenced in the agent's
+# own namespace.
 extraTools: []
 
 # @schema type:object;additionalProperties:{"type":"string"}
 # -- Extra labels merged over the standard set on both objects, e.g.
-# tenant/owner dimensions. They win over the standard set on the AgentTemplate.
+# tenant/owner dimensions. They win over the standard set on both objects.
 labels: {}
 # @schema type:object;additionalProperties:{"type":"string"}
 # -- Extra annotations merged next to the display-name and icon-url
-# annotations on the AgentTemplate.
+# annotations on the Agent.
 annotations: {}
 
 # @schema type:object;additionalProperties:true
-# -- Escape hatch: deep-merged over the curated AgentTemplate spec (this
-# wins), so any kagent.dev/v1alpha3 AgentTemplate field is reachable when the
-# curated surface omits something. It reaches the AgentTemplate spec only —
-# never the RemoteMCPServer and never the Harness.
+# -- Escape hatch: deep-merged over the curated template (this wins), so any
+# api.kagent.dev/v1alpha3 AgentTemplateSpec field is reachable under the
+# Agent's spec.template when the curated surface omits something. It reaches
+# spec.template only, never spec.harnessRef, never the RemoteMCPServer and
+# never the Harness.
 extraAgentSpec: {}

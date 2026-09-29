@@ -1,12 +1,12 @@
 {{- /*
 The agent's own muster RemoteMCPServer: the carrier of its toolset. Rendered in
 the agent's namespace unless the agent is chat-only (toolset exactly
-["preset:none"]) or muster is disabled; the AgentTemplate binds it by name.
+["preset:none"]) or muster is disabled; the Agent's template binds it by name.
 Never an Authorization header — the Harness propagates the caller's token and a
 static header would override it, making every user act as one identity.
 */ -}}
 {{- if include "agent.musterBinding" . }}
-apiVersion: kagent.dev/v1alpha3
+apiVersion: api.kagent.dev/v1alpha3
 kind: RemoteMCPServer
 metadata:
   name: {{ include "agent.name" . }}

@@ -1,15 +1,16 @@
-# Render tests for the AgentTemplate (kagent.dev/v1alpha3) the chart produces.
+# Render tests for the Agent (api.kagent.dev/v1alpha3) the chart produces: the
+# template inline under spec.template, the Harness by name in spec.harnessRef.
 #
 # Run with: make helm-test (helm unittest helm/agent). The chart-test CircleCI
 # job runs the same target on every PR (.circleci/custom.yml).
 #
-# The default-render snapshot in __snapshot__/ is the golden file of the 1.0
+# The default-render snapshot in __snapshot__/ is the golden file of the 2.0
 # contract. Update it only on purpose (make helm-unittest-update) and say so
 # in the PR. Schema errors are matched on the value path only, because the
 # message wording differs between Helm versions.
-suite: agenttemplate
+suite: agent
 templates:
-  - templates/agenttemplate.yaml
+  - templates/agent.yaml
 release:
   name: demo
   namespace: demo-ns
@@ -20,50 +21,59 @@ tests:
           count: 1
       - matchSnapshot: {}
       - isAPIVersion:
-          of: kagent.dev/v1alpha3
+          of: api.kagent.dev/v1alpha3
       - isKind:
-          of: AgentTemplate
+          of: Agent
       - equal:
           path: metadata.name
           value: demo
       - equal:
           path: metadata.namespace
           value: demo-ns
-      - equal:
+      - notExists:
           path: metadata.labels["agent-platform.giantswarm.io/harness"]
-          value: kagent
       - equal:
           path: metadata.labels["app.kubernetes.io/instance"]
           value: demo
       - notExists:
           path: metadata.annotations
       - equal:
-          path: spec.modelConfig.name
+          path: spec.harnessRef
+          value:
+            name: kagent
+      - notExists:
+          path: spec.templateRef
+      - notExists:
+          path: spec.harness
+      - notExists:
+          path: spec.template.plugins
+      - equal:
+          path: spec.template.modelConfig.name
           value: default-model-config
       - equal:
-          path: spec.systemPrompt
+          path: spec.template.systemPrompt
           value: You are a helpful agent.
       - notExists:
-          path: spec.context
+          path: spec.template.context
       - notExists:
-          path: spec.description
+          path: spec.template.description
       - notExists:
-          path: spec.skills
+          path: spec.template.skills
       - lengthEqual:
-          path: spec.tools
+          path: spec.template.tools
           count: 1
       - equal:
-          path: spec.tools[0].mcp.server
+          path: spec.template.tools[0].mcp.server
           value:
             kind: RemoteMCPServer
             name: demo
       - notExists:
-          path: spec.tools[0].mcp.tools
+          path: spec.template.tools[0].mcp.tools
       - notExists:
-          path: spec.tools[0].mcp.requireApproval
+          path: spec.template.tools[0].mcp.requireApproval
 
   # identity
-  - it: names the template and its binding after agent.name when set
+  - it: names the agent and its binding after agent.name when set
     set:
       agent:
         name: sre-assistant
@@ -72,7 +82,7 @@ tests:
           path: metadata.name
           value: sre-assistant
       - equal:
-          path: spec.tools[0].mcp.server.name
+          path: spec.template.tools[0].mcp.server.name
           value: sre-assistant
 
   - it: renders description and a multi-line system prompt
@@ -84,10 +94,10 @@ tests:
           Be concise.
     asserts:
       - equal:
-          path: spec.description
+          path: spec.template.description
           value: Helps the SRE team triage incidents.
       - equal:
-          path: spec.systemPrompt
+          path: spec.template.systemPrompt
           value: |-
             You are an SRE assistant.
             Be concise.
@@ -98,31 +108,55 @@ tests:
         name: claude-sonnet
     asserts:
       - equal:
-          path: spec.modelConfig.name
+          path: spec.template.modelConfig.name
           value: claude-sonnet
 
-  # labels and annotations: the cross-repo contract
-  - it: drives the Harness admission label from agent.harness
+  # the Harness: referenced by name, never selected by label
+  - it: references the Harness named by agent.harness
     set:
       agent:
         harness: claude
     asserts:
       - equal:
-          path: metadata.labels["agent-platform.giantswarm.io/harness"]
+          path: spec.harnessRef.name
           value: claude
+      - notExists:
+          path: metadata.labels["agent-platform.giantswarm.io/harness"]
 
+  - it: refuses an empty agent.harness through the values schema
+    set:
+      agent:
+        harness: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]harness'
+
+  - it: keeps extraAgentSpec out of spec.harnessRef
+    set:
+      extraAgentSpec:
+        harnessRef:
+          name: other
+    asserts:
+      - equal:
+          path: spec.harnessRef.name
+          value: kagent
+      - equal:
+          path: spec.template.harnessRef.name
+          value: other
+
+  # labels and annotations: the cross-repo contract
   - it: merges extra labels over the standard set, the extra labels winning
     set:
       labels:
         giantswarm.io/owner: sre-team
-        agent-platform.giantswarm.io/harness: bridge
+        app: renamed
     asserts:
       - equal:
           path: metadata.labels["giantswarm.io/owner"]
           value: sre-team
       - equal:
-          path: metadata.labels["agent-platform.giantswarm.io/harness"]
-          value: bridge
+          path: metadata.labels["app"]
+          value: renamed
       - equal:
           path: metadata.labels["app.kubernetes.io/name"]
           value: agent
@@ -169,7 +203,7 @@ tests:
             commit: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     asserts:
       - equal:
-          path: spec.skills
+          path: spec.template.skills
           value:
             - name: runbooks
               source:
@@ -195,7 +229,7 @@ tests:
             commit: 0123456789abcdef0123456789abcdef01234567
     asserts:
       - notExists:
-          path: spec.skills[0].source.git.credentialRef
+          path: spec.template.skills[0].source.git.credentialRef
 
   # private skill repositories: one credential fans out to every git skill
   - it: renders credentialRef {name, key token} on every git skill and none on OCI skills with skillsGitAuthSecretRef.name
@@ -216,7 +250,7 @@ tests:
             commit: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     asserts:
       - equal:
-          path: spec.skills
+          path: spec.template.skills
           value:
             - name: runbooks
               source:
@@ -254,7 +288,7 @@ tests:
             commit: 0123456789abcdef0123456789abcdef01234567
     asserts:
       - failedTemplate:
-          errorPattern: 'skills\[1\] "intranet": skillsGitAuthSecretRef.name is set, so every git skill needs an https:// URL'
+          errorPattern: 'skills\[1\] "intranet": skillsGitAuthSecretRef.name is set, so every git source needs an https:// URL'
 
   - it: refuses an unknown key under skillsGitAuthSecretRef through the values schema
     set:
@@ -398,6 +432,158 @@ tests:
       - failedTemplate:
           errorPattern: 'skills'
 
+  # plugins: bundles pinned like skills, with the skills to enable
+  - it: renders git and OCI plugins as immutable sources with their skill selection
+    set:
+      plugins:
+        - git:
+            url: https://github.com/example/plugins
+            commit: 0123456789abcdef0123456789abcdef01234567
+          path: bundles/sre
+          skills:
+            - triage
+            - postmortem
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills:
+            - k8s
+    asserts:
+      - equal:
+          path: spec.template.plugins
+          value:
+            - source:
+                git:
+                  url: https://github.com/example/plugins
+                  commit: 0123456789abcdef0123456789abcdef01234567
+                path: bundles/sre
+              skills:
+                - triage
+                - postmortem
+            - source:
+                oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+              skills:
+                - k8s
+      - notExists:
+          path: spec.template.skills
+
+  - it: fans the git credential out to every git plugin and none of the OCI plugins
+    set:
+      skillsGitAuthSecretRef:
+        name: kagent-skills-token
+      plugins:
+        - git:
+            url: https://github.com/example/private-plugins
+            commit: 0123456789abcdef0123456789abcdef01234567
+          skills:
+            - triage
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills:
+            - k8s
+    asserts:
+      - equal:
+          path: spec.template.plugins[0].source.git.credentialRef
+          value:
+            name: kagent-skills-token
+            key: token
+      - notExists:
+          path: spec.template.plugins[1].source.credentialRef
+
+  - it: refuses a plain http git plugin when skillsGitAuthSecretRef.name is set, naming the entry
+    set:
+      skillsGitAuthSecretRef:
+        name: kagent-skills-token
+      plugins:
+        - git:
+            url: http://git.corp.example/plugins
+            commit: 0123456789abcdef0123456789abcdef01234567
+          skills:
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins\[0\]: skillsGitAuthSecretRef.name is set, so every git source needs an https:// URL'
+
+  - it: refuses a git branch as a plugin commit
+    set:
+      plugins:
+        - git:
+            url: https://github.com/example/plugins
+            commit: main
+          skills:
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0[./]git[./]commit'
+
+  - it: refuses an OCI tag as a plugin source
+    set:
+      plugins:
+        - oci: registry.example.io/plugins/sre:1.4.0
+          skills:
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0[./]oci'
+
+  - it: refuses a plugin with both git and oci
+    set:
+      plugins:
+        - git:
+            url: https://github.com/example/plugins
+            commit: 0123456789abcdef0123456789abcdef01234567
+          oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills:
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0'
+
+  - it: refuses a plugin without a source
+    set:
+      plugins:
+        - skills:
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0'
+
+  - it: refuses a plugin without a skill selection
+    set:
+      plugins:
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0.*skills'
+
+  - it: refuses an empty skill selection on a plugin
+    set:
+      plugins:
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills: []
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0[./]skills'
+
+  - it: refuses a plugin path with a .. segment
+    set:
+      plugins:
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          path: ../outside
+          skills:
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0[./]path'
+
+  - it: refuses a named plugin (a plugin has no name, its skills are selected by name)
+    set:
+      plugins:
+        - name: sre
+          oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills:
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0'
+
   # system prompt size
   - it: accepts a systemMessage at its cap, counted in characters
     values:
@@ -422,7 +608,7 @@ tests:
           - call_tool
     asserts:
       - equal:
-          path: spec.tools[0].mcp.tools
+          path: spec.template.tools[0].mcp.tools
           value:
             - list_tools
             - call_tool
@@ -433,16 +619,16 @@ tests:
         requireApproval: true
     asserts:
       - lengthEqual:
-          path: spec.tools
+          path: spec.template.tools
           count: 1
       - equal:
-          path: spec.tools[0].mcp.server.name
+          path: spec.template.tools[0].mcp.server.name
           value: demo
       - equal:
-          path: spec.tools[0].mcp.requireApproval
+          path: spec.template.tools[0].mcp.requireApproval
           value: true
       - notExists:
-          path: spec.tools[0].mcp.tools
+          path: spec.template.tools[0].mcp.tools
 
   - it: gates the narrowed binding when muster.requireApproval and muster.tools are combined
     set:
@@ -452,7 +638,7 @@ tests:
           - call_tool
     asserts:
       - equal:
-          path: spec.tools[0].mcp
+          path: spec.template.tools[0].mcp
           value:
             server:
               kind: RemoteMCPServer
@@ -477,26 +663,26 @@ tests:
               kind: RemoteMCPServer
               name: github
             requireApproval: true
-        - agent:
+        - subAgent:
             name: reviewer
             description: Reviews the plan before it is executed.
             templateRef:
               name: reviewer
     asserts:
       - lengthEqual:
-          path: spec.tools
+          path: spec.template.tools
           count: 3
       - equal:
-          path: spec.tools[0].mcp.server.name
+          path: spec.template.tools[0].mcp.server.name
           value: demo
       - equal:
-          path: spec.tools[1].mcp.server.name
+          path: spec.template.tools[1].mcp.server.name
           value: github
       - equal:
-          path: spec.tools[1].mcp.requireApproval
+          path: spec.template.tools[1].mcp.requireApproval
           value: true
       - equal:
-          path: spec.tools[2].agent.templateRef.name
+          path: spec.template.tools[2].subAgent.templateRef.name
           value: reviewer
 
   - it: renders no tools at all for exactly ["preset:none"]
@@ -505,7 +691,7 @@ tests:
         - preset:none
     asserts:
       - notExists:
-          path: spec.tools
+          path: spec.template.tools
 
   - it: renders no tools for ["preset:none"] even with muster.requireApproval
     set:
@@ -515,7 +701,7 @@ tests:
         requireApproval: true
     asserts:
       - notExists:
-          path: spec.tools
+          path: spec.template.tools
 
   - it: renders only the extraTools for ["preset:none"] with extraTools
     set:
@@ -528,10 +714,10 @@ tests:
               name: github
     asserts:
       - lengthEqual:
-          path: spec.tools
+          path: spec.template.tools
           count: 1
       - equal:
-          path: spec.tools[0].mcp.server.name
+          path: spec.template.tools[0].mcp.server.name
           value: github
 
   - it: keeps the muster binding when preset:none is combined with other selectors
@@ -541,7 +727,7 @@ tests:
         - tool:x_mcp-kubernetes_get_pods
     asserts:
       - equal:
-          path: spec.tools[0].mcp.server.name
+          path: spec.template.tools[0].mcp.server.name
           value: demo
 
   - it: renders no muster binding when muster is disabled
@@ -552,10 +738,10 @@ tests:
         enabled: false
     asserts:
       - notExists:
-          path: spec.tools
+          path: spec.template.tools
 
   # extraAgentSpec
-  - it: deep-merges extraAgentSpec over the curated spec, the escape hatch winning
+  - it: deep-merges extraAgentSpec over the curated template, the escape hatch winning
     set:
       extraAgentSpec:
         modelConfig:
@@ -565,13 +751,13 @@ tests:
             - name: runbook-index
     asserts:
       - equal:
-          path: spec.modelConfig.name
+          path: spec.template.modelConfig.name
           value: other-model
       - equal:
-          path: spec.promptTemplate.dataSources[0].name
+          path: spec.template.promptTemplate.dataSources[0].name
           value: runbook-index
       - equal:
-          path: spec.systemPrompt
+          path: spec.template.systemPrompt
           value: You are a helpful agent.
 
   # removed 0.x values: the schema refuses every one of them
@@ -794,7 +980,7 @@ tests:
 
   # context.compaction is accepted for the values of existing releases and
   # renders nothing: compaction lives on the platform Harness
-  # (kagent-dev/kagent#2790); the kagent line from 1.1.0 has no spec.context.
+  # (kagent-dev/kagent#2790); the template has no context field.
   - it: renders no spec.context whatever context.compaction says
     set:
       context:
@@ -809,4 +995,4 @@ tests:
             promptTemplate: "Summarise {conversation_history}"
     asserts:
       - notExists:
-          path: spec.context
+          path: spec.template.context
