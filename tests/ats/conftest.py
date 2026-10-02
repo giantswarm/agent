@@ -14,7 +14,8 @@ this chart, so the ``runtime`` fixture brings it up, in this order, idempotent:
   2. the Agent Substrate bootstrap the substrate chart mounts but does not
      render (substrate-bootstrap.yaml, a Job: the CA pools the
      podcertificate-controller signs from, the JWT authority and CA pool
-     ate-api-server mints actor identities from, the derived trust anchor and
+     ate-api-server mints actor identities from, the derived trust anchor, the
+     CA pool atenet-egress mints the actors' TLS leaves from and
      ate-api-server's authentication config), then the substrate chart of the
      Giant Swarm line into ate-system with its bundled database and snapshot
      store (values-substrate.yaml);
