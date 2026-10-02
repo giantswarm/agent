@@ -120,31 +120,45 @@ skillsGitAuthSecretRef:
 ```
 
 When set, every `skills[]` entry with `git` renders
-`source.git.credentialRef: {name, key: token}`; OCI sources are unchanged. The
-runtime offers the token to that source's https host only, on challenge only,
-so a public repository with a credential still fetches. Every git skill then
-needs an `https://` URL — the CRD refuses a credential on a plain http source
-and the chart fails the render first, naming the skill.
+`source.git.credentialRef: {name, key: token}`; OCI sources are unchanged.
+Every git skill then needs an `https://` URL — the CRD refuses a credential on
+any other source and the chart fails the render first, naming the skill. The
+platform side of the contract (the egress gateway, the credential provider,
+agent-manager's minted Secret) is agent-platform's
+[Private skill repositories](https://github.com/giantswarm/agent-platform#the-kagent-line)
+(under "The kagent line").
 
-The tenant provisions the Secret in the agent's namespace (on the platform:
-the `kagent` namespace, where the templates are compiled) with the key `token`
-— a GitHub fine-grained PAT or App installation token with read access to the
-repositories, or a GitLab PAT (the runtime presents `x-access-token` as the
-username) — and labels it `ui.giantswarm.io/agent-skills-git-auth: "true"` so
-the Dev Portal can offer it. The chart never creates it. Rotate the Secret's
-contents, never its name: a renamed Secret means editing every referencing
-agent, a rotated token re-boots only the referencing agents.
+- **Who provisions it, where.** The tenant, in the agent's namespace (on the
+  platform: the `kagent` namespace, where the templates are compiled), labelled
+  `ui.giantswarm.io/agent-skills-git-auth: "true"` so the Dev Portal offers it;
+  or agent-manager, which mints and refreshes `agent-manager-skills-token` from
+  its skills GitHub App when the installation turns that on. The chart never
+  creates it.
+- **Shape.** The key `token` holds `base64("<username>:<token>")` — on GitHub
+  `x-access-token:<token>`, a fine-grained PAT or App installation token with
+  read access to the repositories — the value the egress gateway sends as
+  `Authorization: Basic`.
+- **One credential per host.** It goes with every request to that host,
+  public repositories included; two Secrets for one host in an agent are
+  refused.
+- **Rotation.** Replace the Secret's contents, never its name. The egress
+  gateway reads the Secret on every fetch, so a new token needs no restart; a
+  new name is an edit of every referencing agent and a new revision of each.
+- **Where the token is visible.** In the Secret, to whoever may read Secrets in
+  its namespace, and to the platform's credential provider and egress gateway,
+  which send it to the source's host over TLS. Not in the `AgentTemplate`, the
+  actor's environment (it holds a placeholder) or the snapshots.
 
-What an author sees when it goes wrong:
+What an author sees when it goes wrong (the template's conditions, per Harness
+— see [Readiness](#readiness)):
 
 | Symptom | Cause |
 |---|---|
-| Harness condition `ResolvedRefs=False` (`secret "…" not found`), no actor boots | the Secret is missing in the agent's namespace; the template recovers when it appears |
-| `Ready=False ActorTemplatePending`, git's authentication error in the actor's log | the token is wrong or lacks read access to the repository |
+| `Ready=False` `ActorTemplateRetrying` quoting the git fetch's failure, then `ActorTemplateFailed` (`golden boot 6 of 6 failed (…); no retries left`) | the Secret is missing, the token is wrong or lacks read access, or the namespace has no credential-provider policy (`atespace "ate-golden" is not permitted to resolve secrets`) |
+| `Compatible=False` `UnsupportedConfiguration` (`conflicting credentials for <host> header authorization`) | two credentials for one host |
 
-The field is served by a kagent line that carries it (giantswarm/kagent-upstream
-`0.11.0-gs.x`, the platform's line); a kagent without it prunes the field and
-fetches anonymously.
+The field needs the kagent line 1.1.0 or later (giantswarm/kagent-upstream, the
+platform's line), where the egress gateway injects the credential.
 
 ### Readiness
 
