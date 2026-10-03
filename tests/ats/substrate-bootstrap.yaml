@@ -12,6 +12,10 @@
 #     certificates from them — and the trust anchor actor-id-ca-certs derived
 #     from the latter (its active root as PEM; atenet-egress trusts actor
 #     certificates against it);
+#   * the CA pool egress-mitm-ca-pool in ate-system — atenet-egress terminates
+#     every TLS connection an actor opens, mints the per-host leaf the actor
+#     sees from this pool and does not start without it (ECDSA P-256, the key
+#     type agentgateway signs leaves with);
 #   * the ConfigMap ate-api-authentication — ate-api-server accepts the
 #     cluster's ServiceAccount tokens for the audience api.ate-system.svc,
 #     verified against the apiserver's own issuer, spelled exactly as its
@@ -20,7 +24,7 @@
 # A pool that exists is never touched (a regenerated root would orphan every
 # certificate and token issued from it), so re-applying the Job is a no-op.
 # The init container mints the candidates with openssl (an ED25519 CA, 365
-# days; an ECDSA P-256 ES256 authority; keys as PKCS#8 DER, the form Substrate
+# days, or ECDSA P-256 for the egress pool; an ECDSA P-256 ES256 authority; keys as PKCS#8 DER, the form Substrate
 # parses), the main container decides and writes with kubectl and jq.
 # conftest.py applies this file and waits for the Job to complete.
 apiVersion: v1
@@ -79,7 +83,13 @@ spec:
             - |
               ca_pool() {
                 mkdir -p "/work/$1"
-                openssl genpkey -algorithm ed25519 -out "/work/$1/key.pem"
+                if [ "${2:-}" = "ec" ]; then
+                  openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out "/work/$1/key.pem"
+                  echo "ECDSA P-256" > "/work/$1/algorithm"
+                else
+                  openssl genpkey -algorithm ed25519 -out "/work/$1/key.pem"
+                  echo "ED25519" > "/work/$1/algorithm"
+                fi
                 openssl req -x509 -new -key "/work/$1/key.pem" -days 365 -subj "/CN=$(openssl rand -hex 12)" \
                   -addext basicConstraints=critical,CA:TRUE \
                   -addext keyUsage=critical,digitalSignature,keyCertSign \
@@ -97,8 +107,9 @@ spec:
               ca_pool service-dns-ca-pool
               ca_pool pod-identity-ca-pool
               ca_pool actor-id-ca-pool
+              ca_pool egress-mitm-ca-pool ec
               jwt_pool actor-id-jwt-pool
-              echo "candidates minted for 3 CA pools and 1 JWT authority pool"
+              echo "candidates minted for 4 CA pools and 1 JWT authority pool"
           volumeMounts:
             - name: work
               mountPath: /work
@@ -122,7 +133,7 @@ spec:
                   '{CAs: [{ID: $id, SigningKeyPKCS8: $key, RootCertificateDER: $der}], ActiveForSigning: $id}')
                 kubectl -n "$1" create secret generic "$2" --type=kubernetes.io/tls \
                   --from-literal=pool="$pool" --from-file=tls.crt="/work/$2/cert.pem" --from-file=tls.key="/work/$2/key.pem" >/dev/null
-                echo "CA pool $1/$2: created (ED25519 root, id $pool_id, 365 days)"
+                echo "CA pool $1/$2: created ($(cat "/work/$2/algorithm") root, id $pool_id, 365 days)"
               }
               jwt_pool() {
                 if kubectl -n "$1" get secret "$2" >/dev/null 2>&1; then
@@ -138,6 +149,7 @@ spec:
               ca_pool "$pc_ns" pod-identity-ca-pool
               jwt_pool "$ns" actor-id-jwt-pool
               ca_pool "$ns" actor-id-ca-pool
+              ca_pool "$ns" egress-mitm-ca-pool
               # The trust anchor: the active root of actor-id-ca-pool as PEM.
               root=$(kubectl -n "$ns" get secret actor-id-ca-pool -o jsonpath='{.data.pool}' | base64 -d \
                 | jq -r '. as $p | (($p.CAs | map(select(.ID == $p.ActiveForSigning)) | .[0]) // $p.CAs[0]) | .RootCertificateDER')

@@ -1,0 +1,49 @@
+{
+  // Repo-specific Renovate rules for the agent chart. This file is owned by the
+  // repo and never touched by `devctl gen renovate`; it is pulled in as the
+  // last `extends` entry of the generated renovate.json5. Class-wide rules
+  // belong in giantswarm/renovate-presets instead.
+  //
+  // The app test suite runs on the kagent line and Agent Substrate, pinned at
+  // release tags in .ats/main.yaml (the CRD URLs) and tests/ats/conftest.py
+  // (KAGENT_LINE with the golang-adk image digest HARNESS_IMAGE, and
+  // SUBSTRATE_LINE). No built-in manager sees those pins. Each line's version
+  // is read from the image its release publishes to gsoci, so a proposed tag
+  // always has its image, and the group moves every pin in one PR: the runtime
+  // fixture refuses a half-done bump.
+  customManagers: [
+    {
+      customType: 'regex',
+      description: 'The kagent line of the app test suite: the CRD tags, KAGENT_LINE and the golang-adk digest',
+      managerFilePatterns: ['/^\\.ats/main\\.yaml$/', '/^tests/ats/conftest\\.py$/'],
+      matchStrings: [
+        'kagent-upstream/v(?<currentValue>\\d+\\.\\d+\\.\\d+)/',
+        'KAGENT_LINE = "(?<currentValue>\\d+\\.\\d+\\.\\d+)"[\\s\\S]*?HARNESS_IMAGE = "gsoci\\.azurecr\\.io/giantswarm/kagent/golang-adk@(?<currentDigest>sha256:[a-f0-9]{64})"',
+      ],
+      depNameTemplate: 'gsoci.azurecr.io/giantswarm/kagent/golang-adk',
+      datasourceTemplate: 'docker',
+      versioningTemplate: 'semver',
+    },
+    {
+      customType: 'regex',
+      description: 'The Substrate line of the app test suite: the CRD tags and SUBSTRATE_LINE',
+      managerFilePatterns: ['/^\\.ats/main\\.yaml$/', '/^tests/ats/conftest\\.py$/'],
+      matchStrings: [
+        'giantswarm/substrate/v(?<currentValue>\\d+\\.\\d+\\.\\d+)/',
+        'SUBSTRATE_LINE = "(?<currentValue>\\d+\\.\\d+\\.\\d+)"',
+      ],
+      depNameTemplate: 'gsoci.azurecr.io/giantswarm/substrate/ateom-gvisor',
+      datasourceTemplate: 'docker',
+      versioningTemplate: 'semver',
+    },
+  ],
+  packageRules: [
+    {
+      matchPackageNames: [
+        'gsoci.azurecr.io/giantswarm/kagent/golang-adk',
+        'gsoci.azurecr.io/giantswarm/substrate/ateom-gvisor',
+      ],
+      groupName: 'app test suite runtime (kagent line, Agent Substrate)',
+    },
+  ],
+}

@@ -14,7 +14,8 @@ this chart, so the ``runtime`` fixture brings it up, in this order, idempotent:
   2. the Agent Substrate bootstrap the substrate chart mounts but does not
      render (substrate-bootstrap.yaml, a Job: the CA pools the
      podcertificate-controller signs from, the JWT authority and CA pool
-     ate-api-server mints actor identities from, the derived trust anchor and
+     ate-api-server mints actor identities from, the derived trust anchor, the
+     CA pool atenet-egress mints the actors' TLS leaves from and
      ate-api-server's authentication config), then the substrate chart of the
      Giant Swarm line into ate-system with its bundled database and snapshot
      store (values-substrate.yaml);
@@ -89,19 +90,19 @@ DISCOVERY_LABEL = "kagent.dev/discovery"
 # Pins — the two lines the runtime comes from. Bump procedure: .ats/main.yaml.
 # ---------------------------------------------------------------------------
 
-# The kagent line (giantswarm/kagent-upstream), a release tag `vX.Y.Z-gs.N`
-# without the `v`: the kagent chart and the controller image carry this version.
-KAGENT_LINE = "0.11.0-gs.16"
-KAGENT_CHARTS = "oci://ghcr.io/giantswarm/kagent/helm"
+# The kagent line (giantswarm/kagent-upstream), a release tag `vX.Y.Z` without
+# the `v`: the kagent chart and the controller image carry this version.
+KAGENT_LINE = "1.2.4"
+KAGENT_CHARTS = "oci://gsoci.azurecr.io/giantswarm/kagent/helm"
 # The Go ADK runtime image of that release, by digest — the image index digest
-# `crane digest ghcr.io/giantswarm/kagent/golang-adk:<KAGENT_LINE>` reports
-# (builds.md on the fork's `ledger` branch lists it too, column golang-adk).
-HARNESS_IMAGE = "ghcr.io/giantswarm/kagent/golang-adk@sha256:c083c1b44c3b84b6b0a92dc0a0c714bbd569636d1b43c4002b3dd367fbad765e"
+# `crane digest gsoci.azurecr.io/giantswarm/kagent/golang-adk:<KAGENT_LINE>`
+# reports. Renovate moves it with KAGENT_LINE (renovate-custom.json5).
+HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:49e373e3b896317669df32166c5cf820037dbfd3de576c8290b9eddd38c2f80f"
 # The Substrate line (giantswarm/substrate), a release tag without the `v`: the
 # substrate chart, its control-plane images and the gVisor worker image.
-SUBSTRATE_LINE = "0.0.30-gs.1"
-SUBSTRATE_CHARTS = "oci://ghcr.io/giantswarm/substrate/helm"
-WORKER_IMAGE = f"ghcr.io/giantswarm/substrate/ateom-gvisor:{SUBSTRATE_LINE}"
+SUBSTRATE_LINE = "1.3.0"
+SUBSTRATE_CHARTS = "oci://gsoci.azurecr.io/giantswarm/substrate/helm"
+WORKER_IMAGE = f"gsoci.azurecr.io/giantswarm/substrate/ateom-gvisor:{SUBSTRATE_LINE}"
 
 # ---------------------------------------------------------------------------
 # The runtime's shape (the meta chart's names: agent-platform 4.x).

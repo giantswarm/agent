@@ -37,10 +37,10 @@ logger = logging.getLogger(__name__)
 UNADMITTED = "ats-unadmitted"
 NO_WORKERS = "ats-no-workers"
 UNPULLABLE = "ats-unpullable-image"
-MISSING_WORKER_IMAGE = "ghcr.io/giantswarm/substrate/ateom-gvisor:0.0.0-does-not-exist"
+MISSING_WORKER_IMAGE = "gsoci.azurecr.io/giantswarm/substrate/ateom-gvisor:0.0.0-does-not-exist"
 # A digest the registry has never seen, in a repository that exists: the
 # Harness CRD accepts no tag, and the pull is answered 404 (MANIFEST_UNKNOWN).
-MISSING_HARNESS_IMAGE = "ghcr.io/giantswarm/kagent/golang-adk@sha256:" + "0" * 64
+MISSING_HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:" + "0" * 64
 
 
 @pytest.fixture
