@@ -53,6 +53,17 @@ agent:
   # whose Harness does not exist reports `ResolvedRefs=False` and never
   # becomes Ready.
   harness: kagent
+  # @schema type:array;item:string;itemPattern:^https?://(\*\.([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+|([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*)[a-z]([-a-z0-9]{0,61}[a-z0-9])?(:([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$;maxItems:64;uniqueItems:true
+  # -- (list) HTTP(S) origins the agent may reach besides the destinations its
+  # revision compiles (the model, its MCP servers, its skill and plugin sources,
+  # telemetry), such as `https://github.com:443` or `https://proxy.golang.org`.
+  # Rendered into the Agent's spec.egress. An origin is `http(s)://<host>[:port]`
+  # with no path; the host may have `*` as its leftmost label
+  # (`https://*.githubusercontent.com` matches one label, such as
+  # raw.githubusercontent.com) and a wildcard needs two labels under it, so
+  # nothing opens a whole top-level domain or every host. At most 64 origins.
+  # The chart refuses anything else, naming the entry.
+  egress: []
 
 # -- Which platform-provisioned ModelConfig the agent uses, referenced by name.
 # kagent resolves it in the agent's own namespace. The chart never creates or

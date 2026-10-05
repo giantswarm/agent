@@ -18,5 +18,10 @@ metadata:
 spec:
   harnessRef:
     name: {{ .Values.agent.harness | quote }}
+  {{- include "agent.egress.validate" . }}
+  {{- with .Values.agent.egress }}
+  egress:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   template:
     {{- include "agent.spec" . | nindent 4 }}

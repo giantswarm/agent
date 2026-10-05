@@ -996,3 +996,59 @@ tests:
     asserts:
       - notExists:
           path: spec.template.context
+
+  # egress: Agent.spec.egress, HTTP(S) origins beyond what the revision compiles
+  - it: renders no spec.egress by default
+    asserts:
+      - notExists:
+          path: spec.egress
+
+  - it: renders agent.egress as spec.egress
+    set:
+      agent:
+        egress:
+          - https://github.com:443
+          - https://*.githubusercontent.com
+    asserts:
+      - equal:
+          path: spec.egress
+          value:
+            - https://github.com:443
+            - https://*.githubusercontent.com
+
+  - it: refuses an egress entry that is not an HTTP(S) origin through the values schema
+    set:
+      agent:
+        egress:
+          - github.com
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
+
+  - it: refuses an egress origin with a path through the values schema
+    set:
+      agent:
+        egress:
+          - https://github.com/giantswarm
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
+
+  - it: refuses a wildcard over a top-level domain through the values schema
+    set:
+      agent:
+        egress:
+          - https://*.com
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
+
+  - it: refuses a repeated egress origin through the values schema
+    set:
+      agent:
+        egress:
+          - https://github.com
+          - https://github.com
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
