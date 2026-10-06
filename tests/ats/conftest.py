@@ -34,10 +34,13 @@ generation, latestSuccessfulRevision equal to desiredRevision). No model is
 called: Ready means compiled and bootable. ``wait_agent_ready`` is the one
 wait, and it fails fast with the controller's or Substrate's reason instead of
 sitting out the timeout: a Harness that does not exist (ResolvedRefs=False
-ReferenceResolutionFailed), a compatibility failure, a golden boot Substrate
-reports as failed (Ready=False ActorTemplateFailed with its message — a Harness
-image the registry refuses crashes the golden actor with the registry's answer,
-test_fail_fast.py asserts it), or a WorkerPool with no ready worker.
+ReferenceResolutionFailed), a compatibility failure, a golden boot the
+controller gave up on (Ready=False ActorTemplateFailed with Substrate's
+message), or a WorkerPool with no ready worker. A crashed golden boot is
+started over within the controller's budget (Ready=False ActorTemplateRetrying
+quoting the crash: a Harness image the registry refuses surfaces the registry's
+answer on the first attempt, test_fail_fast.py asserts it) and the wait keeps
+waiting on it.
 
 Pins. The two lines are named once each below (KAGENT_LINE, SUBSTRATE_LINE);
 the Harness image is the Go ADK image of the kagent line's release BY DIGEST
@@ -142,9 +145,11 @@ NO_READY_WORKER_GRACE_S = 45
 # problem, reported as such.
 MISSING_HARNESS_TIMEOUT_S = 120
 
-# Terminal Ready reasons: the controller will not retry these on its own.
-# ActorTemplatePending is the golden boot still running.
-READY_PENDING_REASON = "ActorTemplatePending"
+# Ready reasons the controller retries on its own: ActorTemplatePending is the
+# golden boot still running, ActorTemplateRetrying a crashed golden boot the
+# controller starts over within its budget (six boots; the message quotes the
+# crash and the attempt). Every other False Ready reason is terminal.
+READY_PENDING_REASONS = ("ActorTemplatePending", "ActorTemplateRetrying")
 
 
 class FailFast(AssertionError):
@@ -476,13 +481,14 @@ def describe(c: Dict[str, Any]) -> str:
 
 def terminal_failure(status: Dict[str, Any]) -> Optional[str]:
     """A False condition the controller will not retry: ResolvedRefs or
-    Compatible, or Ready for a reason other than the golden boot still
-    running. ActorTemplateFailed carries Substrate's own message (an image
-    that cannot be pulled, a skill that cannot be materialised)."""
+    Compatible, or Ready for a reason other than a golden boot still running
+    or being started over. ActorTemplateFailed carries Substrate's own message
+    (an invalid template, a boot budget spent on a skill that cannot be
+    materialised)."""
     for c in status.get("conditions") or []:
         if c.get("status") != "False":
             continue
-        if c.get("type") in ("ResolvedRefs", "Compatible") or (c.get("type") == "Ready" and c.get("reason") != READY_PENDING_REASON):
+        if c.get("type") in ("ResolvedRefs", "Compatible") or (c.get("type") == "Ready" and c.get("reason") not in READY_PENDING_REASONS):
             return describe(c)
     return None
 
