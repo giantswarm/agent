@@ -28,8 +28,8 @@
 # PINS. Two lines, each pinned at a RELEASE TAG (a tag or a commit, never the
 # consumed `giantswarm` branch, which is force-pushed on every re-pin):
 #
-#   kagent line     giantswarm/kagent-upstream  v1.2.4
-#   Substrate line  giantswarm/substrate        v1.3.0
+#   kagent line     giantswarm/kagent-upstream  v1.3.0
+#   Substrate line  giantswarm/substrate        v1.4.0
 #
 # The pair the agent-platform meta chart runs (its kagent and substrate version
 # ranges), published to gsoci.azurecr.io.
@@ -58,6 +58,6 @@
 #
 # upgrade stays skipped: 0.x -> 1.0 is a breaking change of the values.
 # yamllint disable-line rule:line-length
-cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_agents.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_harnesses.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_modelconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_modelproviderconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.2.4/helm/kagent-crds/templates/api.kagent.dev_remotemcpservers.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_csidriverconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_sandboxconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.3.0/charts/substrate-crds/templates/ate.dev_workerpools.yaml
+cluster-crds: https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.3.0/helm/kagent-crds/templates/api.kagent.dev_agents.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.3.0/helm/kagent-crds/templates/api.kagent.dev_agenttemplates.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.3.0/helm/kagent-crds/templates/api.kagent.dev_harnesses.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.3.0/helm/kagent-crds/templates/api.kagent.dev_modelconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.3.0/helm/kagent-crds/templates/api.kagent.dev_modelproviderconfigs.yaml,https://raw.githubusercontent.com/giantswarm/kagent-upstream/v1.3.0/helm/kagent-crds/templates/api.kagent.dev_remotemcpservers.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.4.0/charts/substrate-crds/templates/ate.dev_csidriverconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.4.0/charts/substrate-crds/templates/ate.dev_sandboxconfigs.yaml,https://raw.githubusercontent.com/giantswarm/substrate/v1.4.0/charts/substrate-crds/templates/ate.dev_workerpools.yaml
 app-tests-skip-app-deploy: true
 skip-steps: [upgrade]
