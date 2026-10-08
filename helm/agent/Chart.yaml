@@ -12,10 +12,11 @@ name: agent
 # Please describe what the app provides in a sentence or two.
 description: >-
   Create a kagent agent on the Giant Swarm Agent Platform from a small,
-  curated values surface. One chart release renders one AgentTemplate
-  (kagent.dev/v1alpha3) and the agent's muster RemoteMCPServer, which carries
+  curated values surface. One chart release renders one Agent
+  (api.kagent.dev/v1alpha3) with its template inline and its Harness
+  referenced by name, and the agent's muster RemoteMCPServer, which carries
   its toolset; the Harness that runs the agent, the model configuration and
-  the credentials are platform-owned and only referenced by name or label.
+  the credentials are platform-owned and only referenced by name.
 
 # URL of the GitHub repository that is the source of this Chart.yaml file.
 home: https://github.com/giantswarm/agent

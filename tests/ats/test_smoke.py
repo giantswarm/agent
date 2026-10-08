@@ -6,15 +6,15 @@ releases of the archive under test are installed into the Harness's namespace:
 
   * `agent` with tests/ats/values-smoke.yaml — a display name, an icon, a
     toolset, a narrowed muster binding, a public git skill pinned to a commit,
-    extra labels and annotations: every field the chart maps. The template
-    is admitted, compiled and booted into a golden snapshot (the skill is
-    materialised on the way), and the agent's RemoteMCPServer is accepted with
-    no failed condition.
+    extra labels and annotations: every field the chart maps. The Agent
+    resolves the Harness, is compiled and booted into a golden snapshot (the
+    skill is materialised on the way), and the agent's RemoteMCPServer is
+    accepted with no failed condition.
   * `ats-defaults` with the chart's default values — the smallest release an
     operator can install. Ready too, with its RemoteMCPServer (the default
     toolset binds muster).
 
-Ready means compiled, admitted and bootable on the platform's runtime; no
+Ready means compiled and bootable on the platform's runtime; no
 model is called (the provider key is a placeholder).
 """
 
@@ -25,18 +25,18 @@ from typing import Callable
 import pytest
 
 from conftest import (
+    AGENTS,
     API_VERSION,
     DISCOVERY_LABEL,
     FIRST_BOOT_TIMEOUT_S,
     HARNESS,
-    HARNESS_LABEL,
     KAGENT_NAMESPACE,
     TOOLSET_HEADER,
     Kube,
+    agent_generation,
     assert_all_conditions_true,
-    template_generation,
+    wait_agent_ready,
     wait_server_accepted,
-    wait_template_ready,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,19 +49,19 @@ DEFAULTS_RELEASE = "ats-defaults"
 @pytest.mark.smoke
 def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Callable[..., None]) -> None:
     release(SMOKE_RELEASE, SMOKE_VALUES)
-    generation = template_generation(kube, SMOKE_RELEASE)
-    entry = wait_template_ready(kube, SMOKE_RELEASE, timeout=FIRST_BOOT_TIMEOUT_S)
-    assert_all_conditions_true(entry, generation)
-    assert entry["harness"] == HARNESS
-    assert entry["latestSuccessfulRevision"] == entry["desiredRevision"]
-    logger.info("%s Ready on %s at revision %s (warnings: %s)", SMOKE_RELEASE, HARNESS, entry["desiredRevision"], entry.get("warnings") or "none")
+    generation = agent_generation(kube, SMOKE_RELEASE)
+    status = wait_agent_ready(kube, SMOKE_RELEASE, timeout=FIRST_BOOT_TIMEOUT_S)
+    assert_all_conditions_true(status, generation)
+    assert status["latestSuccessfulRevision"] == status["desiredRevision"]
+    logger.info("%s Ready on %s at revision %s (warnings: %s)", SMOKE_RELEASE, HARNESS, status["desiredRevision"], status.get("warnings") or "none")
 
-    template = kube.get("agenttemplates.kagent.dev", SMOKE_RELEASE, namespace=KAGENT_NAMESPACE)
-    assert template
+    agent = kube.get(AGENTS, SMOKE_RELEASE, namespace=KAGENT_NAMESPACE)
+    assert agent
     # The contract the chart renders from values-smoke.yaml.
-    labels, annotations, spec = template["metadata"]["labels"], template["metadata"]["annotations"], template["spec"]
-    assert template["apiVersion"] == API_VERSION
-    assert labels[HARNESS_LABEL] == HARNESS
+    labels, annotations, spec = agent["metadata"]["labels"], agent["metadata"]["annotations"], agent["spec"]["template"]
+    assert agent["apiVersion"] == API_VERSION
+    assert agent["spec"]["harnessRef"] == {"name": HARNESS}
+    assert "templateRef" not in agent["spec"] and "harness" not in agent["spec"]
     assert labels["app.kubernetes.io/instance"] == SMOKE_RELEASE
     assert labels["giantswarm.io/owner"] == "ats"
     assert annotations["ui.giantswarm.io/display-name"] == "ATS Smoke Agent"
@@ -71,8 +71,8 @@ def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Calla
     assert spec["description"] == "Exercises the chart's field mapping on the platform's runtime."
     assert spec["systemPrompt"] == "You are the chart's smoke test. Be brief."
     # context.compaction in the values renders nothing: compaction lives on the
-    # platform Harness (kagent-dev/kagent#2790), and the kagent line from 1.1.0
-    # refuses a template that carries spec.context.
+    # platform Harness (Harness.spec.kagent.compaction), and the template has
+    # no spec.context.
     assert "context" not in spec
     assert spec["skills"] == [
         {
@@ -87,7 +87,6 @@ def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Calla
 
     server = wait_server_accepted(kube, SMOKE_RELEASE)
     assert server["metadata"]["labels"][DISCOVERY_LABEL] == "disabled"
-    assert HARNESS_LABEL not in server["metadata"]["labels"]
     assert server["spec"]["url"] == "http://muster.agent-platform.svc.cluster.local:8090/mcp"
     assert server["spec"]["protocol"] == "STREAMABLE_HTTP"
     assert server["spec"]["timeout"] == "90s"
@@ -98,16 +97,16 @@ def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Calla
 @pytest.mark.smoke
 def test_default_values_reach_ready_with_a_remotemcpserver(kube: Kube, release: Callable[..., None]) -> None:
     release(DEFAULTS_RELEASE)
-    generation = template_generation(kube, DEFAULTS_RELEASE)
-    entry = wait_template_ready(kube, DEFAULTS_RELEASE)
-    assert_all_conditions_true(entry, generation)
+    generation = agent_generation(kube, DEFAULTS_RELEASE)
+    status = wait_agent_ready(kube, DEFAULTS_RELEASE)
+    assert_all_conditions_true(status, generation)
 
-    template = kube.get("agenttemplates.kagent.dev", DEFAULTS_RELEASE, namespace=KAGENT_NAMESPACE)
-    assert template
-    assert template["metadata"]["labels"][HARNESS_LABEL] == HARNESS
-    assert template["spec"]["modelConfig"] == {"name": "default-model-config"}
-    assert "context" not in template["spec"]
-    assert template["spec"]["tools"] == [{"mcp": {"server": {"kind": "RemoteMCPServer", "name": DEFAULTS_RELEASE}}}]
+    agent = kube.get(AGENTS, DEFAULTS_RELEASE, namespace=KAGENT_NAMESPACE)
+    assert agent
+    assert agent["spec"]["harnessRef"] == {"name": HARNESS}
+    assert agent["spec"]["template"]["modelConfig"] == {"name": "default-model-config"}
+    assert "context" not in agent["spec"]["template"]
+    assert agent["spec"]["template"]["tools"] == [{"mcp": {"server": {"kind": "RemoteMCPServer", "name": DEFAULTS_RELEASE}}}]
 
     server = wait_server_accepted(kube, DEFAULTS_RELEASE)
     assert server["metadata"]["labels"][DISCOVERY_LABEL] == "disabled"

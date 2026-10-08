@@ -23,23 +23,24 @@ this chart, so the ``runtime`` fixture brings it up, in this order, idempotent:
      Substrate wiring, its WorkerPool of gVisor workers, the bundled database,
      the default ModelConfig with a placeholder provider key and no UI
      (values-kagent.yaml);
-  4. the platform Harness — the Go ADK runtime image by digest, the WorkerPool,
-     the snapshot location and the admission selector that is the chart's
-     whole contract with the platform: label
-     agent-platform.giantswarm.io/harness=<Harness name>.
+  4. the platform Harness — the Go ADK runtime image by digest, the WorkerPool
+     and the snapshot location. The Harness admits nothing: an Agent names the
+     Harness it runs on (spec.harnessRef.name, the chart's `agent.harness`).
 
-A release of this chart then reaches Ready when its AgentTemplate is admitted
-by that Harness, compiled, and booted once into a golden snapshot on a worker
-(status.harnesses[] for the Harness: Accepted, ResolvedRefs, Compatible and
-Ready True for the current generation). No model is called: Ready means
-compiled, admitted and bootable. ``wait_template_ready`` is the one wait, and it
-fails fast with the controller's or Substrate's reason instead of sitting out
-the timeout: no Harness admits the template (the controller caught up with the
-generation and reports no Harness), a reference or compatibility failure, a
-golden boot Substrate reports as failed (Ready=False ActorTemplateFailed with
-its message — a Harness image the registry refuses crashes the golden actor
-with the registry's answer, test_fail_fast.py asserts it), or a WorkerPool
-with no ready worker.
+A release of this chart then reaches Ready when its Agent resolves its Harness,
+is compiled, and booted once into a golden snapshot on a worker (the Agent's
+status: Accepted, ResolvedRefs, Compatible and Ready True for the current
+generation, latestSuccessfulRevision equal to desiredRevision). No model is
+called: Ready means compiled and bootable. ``wait_agent_ready`` is the one
+wait, and it fails fast with the controller's or Substrate's reason instead of
+sitting out the timeout: a Harness that does not exist (ResolvedRefs=False
+ReferenceResolutionFailed), a compatibility failure, a golden boot the
+controller gave up on (Ready=False ActorTemplateFailed with Substrate's
+message), or a WorkerPool with no ready worker. A crashed golden boot is
+started over within the controller's budget (Ready=False ActorTemplateRetrying
+quoting the crash: a Harness image the registry refuses surfaces the registry's
+answer on the first attempt, test_fail_fast.py asserts it) and the wait keeps
+waiting on it.
 
 Pins. The two lines are named once each below (KAGENT_LINE, SUBSTRATE_LINE);
 the Harness image is the Go ADK image of the kagent line's release BY DIGEST
@@ -81,8 +82,11 @@ ATS_CONFIG = REPO_ROOT / ".ats" / "main.yaml"
 # The contract the chart renders (giantswarm/agent#25) and the platform reads.
 # ---------------------------------------------------------------------------
 
-API_VERSION = "kagent.dev/v1alpha3"
-HARNESS_LABEL = "agent-platform.giantswarm.io/harness"
+API_VERSION = "api.kagent.dev/v1alpha3"
+AGENTS = "agents.api.kagent.dev"
+HARNESSES = "harnesses.api.kagent.dev"
+REMOTE_MCP_SERVERS = "remotemcpservers.api.kagent.dev"
+MODEL_CONFIGS = "modelconfigs.api.kagent.dev"
 TOOLSET_HEADER = "X-Muster-Toolset"
 DISCOVERY_LABEL = "kagent.dev/discovery"
 
@@ -92,15 +96,15 @@ DISCOVERY_LABEL = "kagent.dev/discovery"
 
 # The kagent line (giantswarm/kagent-upstream), a release tag `vX.Y.Z` without
 # the `v`: the kagent chart and the controller image carry this version.
-KAGENT_LINE = "1.2.5"
+KAGENT_LINE = "1.3.0"
 KAGENT_CHARTS = "oci://gsoci.azurecr.io/giantswarm/kagent/helm"
 # The Go ADK runtime image of that release, by digest — the image index digest
 # `crane digest gsoci.azurecr.io/giantswarm/kagent/golang-adk:<KAGENT_LINE>`
 # reports. Renovate moves it with KAGENT_LINE (renovate-custom.json5).
-HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:0859f18d1655a83be43077b1d81ebb596bc71bfe74159cfc7387f98e489ebfa8"
+HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:08dffee4152491b51482accd81e179eeede6fc6443c0bbce110c9bd70bdb3f5f"
 # The Substrate line (giantswarm/substrate), a release tag without the `v`: the
 # substrate chart, its control-plane images and the gVisor worker image.
-SUBSTRATE_LINE = "1.3.0"
+SUBSTRATE_LINE = "1.4.0"
 SUBSTRATE_CHARTS = "oci://gsoci.azurecr.io/giantswarm/substrate/helm"
 WORKER_IMAGE = f"gsoci.azurecr.io/giantswarm/substrate/ateom-gvisor:{SUBSTRATE_LINE}"
 
@@ -136,14 +140,16 @@ BOOT_TIMEOUT_S = 300
 SERVER_TIMEOUT_S = 120
 # A WorkerPool without a ready worker for this long is a failure, not a restart.
 NO_READY_WORKER_GRACE_S = 45
-# The controller's pass over a template that no Harness admits is seconds; an
-# unadmitted template still without a status after this long is a controller
+# The controller's pass over an Agent whose Harness does not exist is seconds;
+# such an Agent still without a status after this long is a controller
 # problem, reported as such.
-UNADMITTED_TIMEOUT_S = 120
+MISSING_HARNESS_TIMEOUT_S = 120
 
-# Terminal Ready reasons: the controller will not retry these on its own.
-# ActorTemplatePending is the golden boot still running.
-READY_PENDING_REASON = "ActorTemplatePending"
+# Ready reasons the controller retries on its own: ActorTemplatePending is the
+# golden boot still running, ActorTemplateRetrying a crashed golden boot the
+# controller starts over within its budget (six boots; the message quotes the
+# crash and the attempt). Every other False Ready reason is terminal.
+READY_PENDING_REASONS = ("ActorTemplatePending", "ActorTemplateRetrying")
 
 
 class FailFast(AssertionError):
@@ -413,8 +419,8 @@ def wait_worker_pool(kube: Kube, name: str = WORKER_POOL, timeout: float = WORKE
 
 
 def harness_object(name: str, image: str = HARNESS_IMAGE, worker_pool: str = WORKER_POOL, namespace: str = KAGENT_NAMESPACE) -> Dict[str, Any]:
-    """The platform Harness (what the connectivity chart of agent-platform 4.x
-    renders): one label is the whole admission contract."""
+    """The platform Harness (what the connectivity chart of agent-platform
+    renders). It admits nothing: an Agent names it in spec.harnessRef."""
     return {
         "apiVersion": API_VERSION,
         "kind": "Harness",
@@ -424,7 +430,6 @@ def harness_object(name: str, image: str = HARNESS_IMAGE, worker_pool: str = WOR
             "workload": {"image": image},
             "env": [{"name": "KAGENT_PROPAGATE_TOKEN", "value": "true"}],
             "substrate": {"workerPoolRef": {"name": worker_pool}, "snapshotPolicy": {"location": SNAPSHOT_LOCATION}},
-            "allowedAgentTemplates": {"selector": {"matchLabels": {HARNESS_LABEL: name}}},
         },
     }
 
@@ -437,7 +442,7 @@ def ensure_runtime(kube: Kube, helm: Helm) -> None:
     install_kagent(kube, helm)
     wait_worker_pool(kube)
     kube.apply(harness_object(HARNESS))
-    assert kube.get("modelconfigs.kagent.dev", MODEL_CONFIG, namespace=KAGENT_NAMESPACE), f"the kagent chart rendered no ModelConfig {MODEL_CONFIG}"
+    assert kube.get(MODEL_CONFIGS, MODEL_CONFIG, namespace=KAGENT_NAMESPACE), f"the kagent chart rendered no ModelConfig {MODEL_CONFIG}"
     logger.info("runtime up: substrate %s in %s, kagent %s in %s, Harness %s on %s (%s)",
                 SUBSTRATE_LINE, SUBSTRATE_NAMESPACE, KAGENT_LINE, KAGENT_NAMESPACE, HARNESS, WORKER_POOL, HARNESS_IMAGE)
 
@@ -449,26 +454,18 @@ def dump_substrate(kube: Kube) -> None:
 
 
 def dump_kagent(kube: Kube) -> None:
-    servers = ("get remotemcpservers.kagent.dev -o custom-columns=NAME:.metadata.name,GENERATION:.metadata.generation,"
+    servers = (f"get {REMOTE_MCP_SERVERS} -o custom-columns=NAME:.metadata.name,GENERATION:.metadata.generation,"
                "OBSERVED:.status.observedGeneration,CONDITIONS:.status.conditions[*].type,STATUS:.status.conditions[*].status,REASON:.status.conditions[*].reason")
     kube.dump([f"-n {KAGENT_NAMESPACE} get pods -o wide", f"-n {KAGENT_NAMESPACE} get workerpools.ate.dev -o yaml",
-               f"-n {KAGENT_NAMESPACE} get harnesses.kagent.dev -o yaml", f"-n {KAGENT_NAMESPACE} get agenttemplates.kagent.dev -o yaml",
+               f"-n {KAGENT_NAMESPACE} get {HARNESSES} -o yaml", f"-n {KAGENT_NAMESPACE} get {AGENTS} -o yaml",
                f"-n {KAGENT_NAMESPACE} {servers}", f"-n {KAGENT_NAMESPACE} get events --sort-by=.lastTimestamp",
                f"-n {KAGENT_NAMESPACE} logs deployment/kagent-controller --tail=300",
                f"-n {KAGENT_NAMESPACE} logs deployment/kagent-controller --previous --tail=40"])
 
 
 # ---------------------------------------------------------------------------
-# Readiness of an AgentTemplate on a Harness
+# Readiness of an Agent
 # ---------------------------------------------------------------------------
-
-
-def harness_status(template: Dict[str, Any], harness: str) -> Optional[Dict[str, Any]]:
-    """The Harness's entry in status.harnesses[], None while the controller has not reported on it."""
-    for entry in (template.get("status") or {}).get("harnesses") or []:
-        if entry.get("harness") == harness:
-            return entry
-    return None
 
 
 def condition(entry: Optional[Dict[str, Any]], kind: str) -> Dict[str, Any]:
@@ -482,68 +479,60 @@ def describe(c: Dict[str, Any]) -> str:
     return f"{c.get('type')}={c.get('status')} {c.get('reason')}: {c.get('message')}"
 
 
-def terminal_failure(entry: Dict[str, Any]) -> Optional[str]:
+def terminal_failure(status: Dict[str, Any]) -> Optional[str]:
     """A False condition the controller will not retry: ResolvedRefs or
-    Compatible, or Ready for a reason other than the golden boot still
-    running. ActorTemplateFailed carries Substrate's own message (an image
-    that cannot be pulled, a skill that cannot be materialised)."""
-    for c in entry.get("conditions") or []:
+    Compatible, or Ready for a reason other than a golden boot still running
+    or being started over. ActorTemplateFailed carries Substrate's own message
+    (an invalid template, a boot budget spent on a skill that cannot be
+    materialised)."""
+    for c in status.get("conditions") or []:
         if c.get("status") != "False":
             continue
-        if c.get("type") in ("ResolvedRefs", "Compatible") or (c.get("type") == "Ready" and c.get("reason") != READY_PENDING_REASON):
+        if c.get("type") in ("ResolvedRefs", "Compatible") or (c.get("type") == "Ready" and c.get("reason") not in READY_PENDING_REASONS):
             return describe(c)
     return None
 
 
-def wait_template_ready(kube: Kube, name: str, harness: str = HARNESS, timeout: float = BOOT_TIMEOUT_S, namespace: str = KAGENT_NAMESPACE) -> Dict[str, Any]:
-    """The AgentTemplate's status.harnesses[] entry for the Harness once Ready
-    is True for the current generation (and the successful revision is the
-    desired one). Fails fast, with the reason, when no Harness admits the
-    template, when a condition fails for good, or when the Harness's WorkerPool
-    has no ready worker; times out only on a golden boot that is still pending."""
+def wait_agent_ready(kube: Kube, name: str, timeout: float = BOOT_TIMEOUT_S, namespace: str = KAGENT_NAMESPACE) -> Dict[str, Any]:
+    """The Agent's status once Ready is True for the current generation (and
+    the successful revision is the desired one). Fails fast, with the reason,
+    when a condition fails for good (a Harness that does not exist is
+    ResolvedRefs=False) or when the Harness's WorkerPool has no ready worker;
+    times out only on a golden boot that is still pending."""
     started = time.monotonic()
     zero_ready_since: List[float] = []
 
     def poll() -> Any:
-        template = kube.get("agenttemplates.kagent.dev", name, namespace=namespace)
-        if not template:
-            raise FailFast(f"AgentTemplate {namespace}/{name} does not exist")
-        generation = template["metadata"]["generation"]
-        status = template.get("status") or {}
-        entry = harness_status(template, harness)
-        if entry is None:
-            if status.get("observedGeneration", 0) >= generation:
-                harnesses = kube.items("harnesses.kagent.dev", namespace=namespace)
-                selectors = ", ".join(
-                    f"{h['metadata']['name']} admits {h['spec'].get('allowedAgentTemplates', {}).get('selector', {}).get('matchLabels', {})}" for h in harnesses
-                ) or "none in the namespace"
-                raise FailFast(
-                    f"no Harness admits AgentTemplate {namespace}/{name} (labels {template['metadata'].get('labels', {})};"
-                    f" the controller caught up with generation {generation} and reports no Harness). Harnesses: {selectors}"
-                )
+        agent = kube.get(AGENTS, name, namespace=namespace)
+        if not agent:
+            raise FailFast(f"Agent {namespace}/{name} does not exist")
+        generation = agent["metadata"]["generation"]
+        status = agent.get("status") or {}
+        harness = (agent["spec"].get("harnessRef") or {}).get("name", "")
+        if not status.get("conditions"):
             return None
-        failure = terminal_failure(entry)
+        failure = terminal_failure(status)
         if failure:
-            raise FailFast(f"AgentTemplate {namespace}/{name} on Harness {harness} failed for good after {time.monotonic() - started:.0f}s: {failure}")
-        ready = condition(entry, "Ready")
-        if ready.get("status") == "True" and int(ready.get("observedGeneration") or 0) >= generation and entry.get("latestSuccessfulRevision") == entry.get("desiredRevision"):
-            return entry
+            raise FailFast(f"Agent {namespace}/{name} on Harness {harness} failed for good after {time.monotonic() - started:.0f}s: {failure}")
+        ready = condition(status, "Ready")
+        if ready.get("status") == "True" and int(ready.get("observedGeneration") or 0) >= generation and status.get("latestSuccessfulRevision") == status.get("desiredRevision"):
+            return status
         # The boot is pending: a pool without a ready worker never boots it.
-        harness_obj = kube.get("harnesses.kagent.dev", harness, namespace=namespace) or {}
+        harness_obj = kube.get(HARNESSES, harness, namespace=namespace) or {}
         pool = harness_obj.get("spec", {}).get("substrate", {}).get("workerPoolRef", {}).get("name")
         if pool:
             if worker_pool_ready(kube, pool, namespace) == 0:
                 zero_ready_since.append(time.monotonic())
                 if time.monotonic() - zero_ready_since[0] >= NO_READY_WORKER_GRACE_S:
-                    raise FailFast(f"AgentTemplate {namespace}/{name} cannot boot: {no_ready_worker_reason(kube, pool, namespace)}")
+                    raise FailFast(f"Agent {namespace}/{name} cannot boot: {no_ready_worker_reason(kube, pool, namespace)}")
             else:
                 zero_ready_since.clear()
         logger.info("%s on %s: %s", name, harness, describe(ready) if ready else "no Ready condition yet")
         return None
 
-    entry = wait_for(f"AgentTemplate {name} Ready on Harness {harness}", poll, timeout)
-    TIMINGS.record(f"AgentTemplate {name} Ready on {harness}", time.monotonic() - started)
-    return entry
+    status = wait_for(f"Agent {name} Ready", poll, timeout)
+    TIMINGS.record(f"Agent {name} Ready", time.monotonic() - started)
+    return status
 
 
 def assert_all_conditions_true(entry: Dict[str, Any], generation: int) -> None:
@@ -561,18 +550,18 @@ def assert_all_conditions_true(entry: Dict[str, Any], generation: int) -> None:
 def install_release(helm: Helm, chart_archive: Path, release: str, values: Optional[Path] = None, sets: Optional[List[str]] = None) -> None:
     """`helm install` of a release of the chart under test into the Harness's
     namespace. No --wait: the chart renders custom resources only, and the
-    readiness that matters is asserted by wait_template_ready."""
+    readiness that matters is asserted by wait_agent_ready."""
     helm.install(release, str(chart_archive), KAGENT_NAMESPACE, values=[values] if values else None, sets=sets, wait=False, timeout="2m")
 
 
-def template_generation(kube: Kube, name: str) -> int:
-    template = kube.get("agenttemplates.kagent.dev", name, namespace=KAGENT_NAMESPACE)
-    assert template, f"AgentTemplate {KAGENT_NAMESPACE}/{name} does not exist"
-    return int(template["metadata"]["generation"])
+def agent_generation(kube: Kube, name: str) -> int:
+    agent = kube.get(AGENTS, name, namespace=KAGENT_NAMESPACE)
+    assert agent, f"Agent {KAGENT_NAMESPACE}/{name} does not exist"
+    return int(agent["metadata"]["generation"])
 
 
 def remote_mcp_server(kube: Kube, name: str) -> Optional[Dict[str, Any]]:
-    return kube.get("remotemcpservers.kagent.dev", name, namespace=KAGENT_NAMESPACE)
+    return kube.get(REMOTE_MCP_SERVERS, name, namespace=KAGENT_NAMESPACE)
 
 
 def wait_server_accepted(kube: Kube, name: str, timeout: float = SERVER_TIMEOUT_S) -> Dict[str, Any]:
@@ -581,7 +570,7 @@ def wait_server_accepted(kube: Kube, name: str, timeout: float = SERVER_TIMEOUT_
     controller accepts the server without connecting to it (agents resolve the
     tool list at run time), so a failed condition is a failure, not a retry.
     The discovery reconciler runs on its own queue, so the status may land
-    after the template's — hence a wait, not a read."""
+    after the Agent's — hence a wait, not a read."""
 
     seen: List[str] = []
 
