@@ -1,8 +1,8 @@
-# Render tests for the agent's muster RemoteMCPServer (kagent.dev/v1alpha3):
+# Render tests for the agent's muster RemoteMCPServer (api.kagent.dev/v1alpha3):
 # the carrier of the toolset, named after the agent, in the agent's namespace.
 #
 # Run with: make helm-test (helm unittest helm/agent). The default-render
-# snapshot in __snapshot__/ is the golden file of the 1.0 contract; update it
+# snapshot in __snapshot__/ is the golden file of the 2.0 contract; update it
 # only on purpose (make helm-unittest-update) and say so in the PR.
 suite: remotemcpserver
 templates:
@@ -17,7 +17,7 @@ tests:
           count: 1
       - matchSnapshot: {}
       - isAPIVersion:
-          of: kagent.dev/v1alpha3
+          of: api.kagent.dev/v1alpha3
       - isKind:
           of: RemoteMCPServer
       - equal:

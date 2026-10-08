@@ -3,7 +3,7 @@
 # devctl never touches it.
 #
 #   - chart-test: helm lint plus the helm-unittest render suites in
-#     helm/agent/tests/ (what the AgentTemplate and the RemoteMCPServer render
+#     helm/agent/tests/ (what the Agent and the RemoteMCPServer render
 #     from the values: the golden default renders, the label/annotation
 #     contract, the toolset header, the preset:none omission, the skills
 #     mapping and the render failures the values schema produces). The
