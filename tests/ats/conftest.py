@@ -104,7 +104,7 @@ KAGENT_CHARTS = "oci://gsoci.azurecr.io/giantswarm/kagent/helm"
 HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:620848597d1310508fb3d84f829a3868bb3ee5620f2906c296b3b1265a1313e6"
 # The Substrate line (giantswarm/substrate), a release tag without the `v`: the
 # substrate chart, its control-plane images and the gVisor worker image.
-SUBSTRATE_LINE = "1.6.0"
+SUBSTRATE_LINE = "1.6.2"
 SUBSTRATE_CHARTS = "oci://gsoci.azurecr.io/giantswarm/substrate/helm"
 WORKER_IMAGE = f"gsoci.azurecr.io/giantswarm/substrate/ateom-gvisor:{SUBSTRATE_LINE}"
 
