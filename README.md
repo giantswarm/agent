@@ -10,12 +10,9 @@ tools) and the platform `Harness` referenced by name
 (`spec.harnessRef`: how it *runs*), and, unless the agent is chat-only, the
 agent's own muster `RemoteMCPServer`, the carrier of its toolset.
 
-Design and decision history live in the
-[Creating agents PRD](https://github.com/giantswarm/bumblebee-plans/blob/main/creating-agents/PRD.md)
-(epic: [giantswarm/giantswarm#36796](https://github.com/giantswarm/giantswarm/issues/36796))
-and, for the kagent API v2 shape of chart 1.x and 2.x, in the migration plan
-[bumblebee-plans#51](https://github.com/giantswarm/bumblebee-plans/pull/51)
-(epic: [giantswarm/giantswarm#37705](https://github.com/giantswarm/giantswarm/issues/37705)).
+The design: one release of this chart per agent, with the agent's own muster
+`RemoteMCPServer` carrying its toolset. Charts 1.x and 2.x target the kagent API v2
+shape, where how an agent runs is a separate `Harness` the agent references.
 
 ## What the chart does — and deliberately does not — render
 
@@ -92,8 +89,7 @@ and no muster binding at all — a chat-only agent. An empty list fails the
 render (say `preset:none`), more than 32 inline selectors fail (define a
 preset), and `toolset:<name>` is reserved. Composition, not authorization: the
 human's identity and the backends' own authorization remain the boundary. The
-plan behind it is the
-[Agent Tool Access PRD](https://github.com/giantswarm/bumblebee-plans/blob/main/agent-tool-access/PRD.md).
+agent gets no wider access of its own.
 
 `muster.tools` narrows the binding to a subset of muster's *meta-tools*
 (`list_tools`, `call_tool`, ...), not the tools behind the gateway — a toolset
