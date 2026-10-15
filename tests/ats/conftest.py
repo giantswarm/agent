@@ -20,7 +20,8 @@ this chart, so the ``runtime`` fixture brings it up, in this order, idempotent:
      Giant Swarm line into ate-system with its bundled database and snapshot
      store (values-substrate.yaml);
   3. the kagent chart of the Giant Swarm line into the kagent namespace with
-     Substrate wiring, its WorkerPool of gVisor workers, the bundled database,
+     Substrate wiring, its WorkerPool of gVisor workers, a dev database
+     (kagent-postgres.yaml, applied first),
      the default ModelConfig with a placeholder provider key and no UI
      (values-kagent.yaml);
   4. the platform Harness — the Go ADK runtime image by digest, the WorkerPool
@@ -127,6 +128,8 @@ BOOTSTRAP_MANIFEST = ATS_DIR / "substrate-bootstrap.yaml"
 BOOTSTRAP_JOB = "substrate-bootstrap"
 SUBSTRATE_VALUES = ATS_DIR / "values-substrate.yaml"
 KAGENT_VALUES = ATS_DIR / "values-kagent.yaml"
+KAGENT_DATABASE_MANIFEST = ATS_DIR / "kagent-postgres.yaml"
+KAGENT_DATABASE = "kagent-postgresql"
 
 # Budgets. The runtime comes up once per cluster (the functional scenario finds
 # it installed); a golden boot pulls the Go ADK image into the worker the first
@@ -388,12 +391,18 @@ def install_kagent(kube: Kube, helm: Helm) -> None:
         return
     started = time.monotonic()
     try:
+        # The chart bundles no database: the controller needs the Secret
+        # kagent-postgres and a database behind it before it starts.
+        kube.ensure_namespace(KAGENT_NAMESPACE)
+        kube.cmd(["-n", KAGENT_NAMESPACE, "apply", "-f", str(KAGENT_DATABASE_MANIFEST)])
+        r = kube.cmd(["-n", KAGENT_NAMESPACE, "rollout", "status", f"deployment/{KAGENT_DATABASE}", "--timeout=5m"], check=False)
+        assert r.returncode == 0, f"the kagent database {KAGENT_DATABASE} did not become ready:\n{r.stdout}\n{r.stderr}"
         helm.install(KAGENT_RELEASE, f"{KAGENT_CHARTS}/kagent", KAGENT_NAMESPACE, values=[KAGENT_VALUES],
                      sets=[f"substrateWorkerPool.workerImage={WORKER_IMAGE}"], version=KAGENT_LINE)
     except AssertionError:
         dump_kagent(kube)
         raise
-    TIMINGS.record(f"kagent {KAGENT_LINE} installed (controller, bundled postgres, WorkerPool {WORKER_POOL})", time.monotonic() - started)
+    TIMINGS.record(f"kagent {KAGENT_LINE} installed (controller, postgres, WorkerPool {WORKER_POOL})", time.monotonic() - started)
 
 
 def worker_pool_ready(kube: Kube, name: str, namespace: str = KAGENT_NAMESPACE) -> int:
