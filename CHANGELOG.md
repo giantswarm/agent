@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `make helm-test` no longer runs the chart's helm-unittest suites twice: the hand-written target beside the generated one in `Makefile.gen.app.mk` (giantswarm/devctl#2570) is gone, so the helm-unittest version is pinned in one place. `make helm-lint` still runs as part of it, and `make helm-unittest-update` still re-records the snapshot.
+
 - The ATS fail-fast cases follow the kagent 1.3.0 and Substrate 1.4.0 lines. A WorkerPool without a ready worker is built from a pod template whose `nodeSelector` matches no node, since ate-controller runs every gVisor pool on the release's own `ateom-gvisor` whatever `spec.workerImage` says. A Harness image the registry refuses is reported as `Ready=False ActorTemplateRetrying` quoting `GoldenActorCrashed … MANIFEST_UNKNOWN` and the attempt's place in the six-boot budget (`test_unpullable_harness_image_reports_the_registry_answer`); the readiness wait treats `ActorTemplateRetrying` as a boot still running, and `ActorTemplateFailed` as terminal.
 - Chart 2.0 renders one `api.kagent.dev/v1alpha3 Agent` named after the release: the template inline under `spec.template` (everything the `AgentTemplate` carried: `modelConfig`, `description`, `systemPrompt`, `skills`, the muster binding with `tools` and `requireApproval`, `extraTools`), the Harness by name in `spec.harnessRef.name`. The muster `RemoteMCPServer` moves to `api.kagent.dev/v1alpha3`. The values contract is the 1.x one plus `plugins`; the README's "Migrating from 1.x" table lists the keys whose meaning changed.
 
