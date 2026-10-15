@@ -7,6 +7,12 @@
 
 HELM_UNITTEST_VERSION := 1.0.3
 
+# The chart the generated Makefile.gen.app.mk targets act on. `make helm-docs`
+# regenerates helm/agent/README.md with the flags CI's pre-commit hook uses
+# (--sort-values-order=file); a bare `helm-docs` sorts alphanumerically and
+# reorders the values table.
+APPLICATION := agent
+
 .PHONY: helm-lint
 helm-lint: ## Lint the chart.
 	helm lint helm/agent
