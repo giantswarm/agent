@@ -1,3 +1,9 @@
+# The chart the generated Makefile.gen.app.mk targets act on. `make helm-docs`
+# regenerates helm/agent/README.md with the flags CI's pre-commit hook uses
+# (--sort-values-order=file); a bare `helm-docs` sorts alphanumerically and
+# reorders the values table.
+APPLICATION := agent
+
 ##@ Helm
 
 # Repo-owned targets next to the generated Makefile.gen.app.mk. `make help`

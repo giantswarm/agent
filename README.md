@@ -254,7 +254,9 @@ that does not exist in the agent's namespace.
 ### Values
 
 See the [chart values reference](helm/agent/README.md) for all available values
-and their defaults.
+and their defaults. It is generated from `helm/agent/values.yaml`: after a
+values change, `make helm-docs` (or `pre-commit run helm-docs --all-files`)
+regenerates it exactly as CI does.
 
 `values.schema.json` encodes the curated contract (`additionalProperties:
 false`), so bad values (including every 0.x value that has no place in 2.x)
