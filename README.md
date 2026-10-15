@@ -181,6 +181,63 @@ What an author sees when it goes wrong (the Agent's conditions, see
 The field needs the kagent line 1.1.0 or later (giantswarm/kagent-upstream, the
 platform's line), where the egress gateway injects the credential.
 
+### What an agent can reach
+
+An agent runs in a sandbox with no network of its own: every outbound
+connection leaves through the platform's egress gateway, which allows a
+destination only when the agent's revision or its `egress` list names it. An
+agent reaches by default:
+
+- its **model** (the `ModelConfig` named by `modelConfig.name`);
+- its **MCP servers**, muster included (`muster.url`), so a muster toolset
+  needs no entry;
+- the sources of its **skills and plugins** (`skills[]`, `plugins[]`) and the
+  platform's telemetry.
+
+Nothing else. The platform adds these destinations when it compiles the agent,
+so none of them goes into `agent.egress`.
+
+**Adding a host.** List the origin in `agent.egress`, or the same list wherever
+the agent is edited: the `egress` argument of agent-manager's `create_agent`
+and `update_agent`, "Extra egress origins" in the Dev Portal's agent form. The
+chart renders the list into the Agent's `spec.egress`:
+
+```yaml
+agent:
+  egress:
+    - https://github.com:443
+    - https://*.githubusercontent.com   # raw.githubusercontent.com, one label
+```
+
+- An origin is `http(s)://<host>[:<port>]` with **no path**. A path, a query
+  or a bare host name fails the render, naming the entry.
+- The host may start with `*.`, which matches exactly one label, and needs two
+  labels under it: `https://*.githubusercontent.com` is valid,
+  `https://*.com` and `https://*` are not. No entry opens a whole top-level
+  domain or every host.
+- At most 64 origins of at most 270 characters each, none twice.
+- Anyone who may edit the agent may set its egress: the list is part of the
+  agent's own spec, not a separate approval.
+- An agent on a coding Harness (a runtime other than `kagent`) gets its origins
+  from the platform's per-Harness list, which agent-manager writes into
+  `agent.egress`; another origin is refused there.
+
+**What a denial looks like.** The platform answers a refused request, so it
+reads like an outage, not a policy:
+
+| Traffic | What the agent sees |
+|---|---|
+| HTTP or HTTPS to an origin not listed | an HTTP `403` with a body that starts `actor egress policy denied` (or `egress denied`) |
+| any other TCP (SSH, a database, a message queue) | the connection is closed without a reply, which clients report as a reset or an EOF |
+| DNS | answered for any name, listed or not, so a name that resolves does not mean it can be reached |
+
+A `403` or a reset on a host the agent should reach is a missing origin: add
+it and the next revision of the agent has it.
+
+**Traffic kinds.** Only HTTP(S) can be allowed today, by origin as above.
+TLS passthrough and raw TCP have no field in the chart yet; they follow once
+the platform ships them.
+
 ### Readiness
 
 The Agent reports its own readiness on the Harness it names:

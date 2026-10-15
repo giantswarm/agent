@@ -2,6 +2,8 @@
 
 Create a kagent agent on the Giant Swarm Agent Platform from a small, curated values surface. One chart release renders one Agent (api.kagent.dev/v1alpha3) with its template inline and its Harness referenced by name, and the agent's muster RemoteMCPServer, which carries its toolset; the Harness that runs the agent, the model configuration and the credentials are platform-owned and only referenced by name.
 
+What an agent can reach and how to add a host (`agent.egress`): [What an agent can reach](../../README.md#what-an-agent-can-reach).
+
 **Homepage:** <https://github.com/giantswarm/agent>
 
 ## Source Code
