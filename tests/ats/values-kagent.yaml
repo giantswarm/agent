@@ -6,7 +6,9 @@
 #
 #   * the controller wired to the Substrate control plane in ate-system, the
 #     WorkerPool of gVisor workers it places actors on (two, so a boot never
-#     waits for the one worker), the bundled database;
+#     waits for the one worker), the database kagent-postgres.yaml deploys
+#     (its Secret kagent-postgres is the chart's default reference; the login
+#     user owns the database, so no role is assumed);
 #   * the default ModelConfig from `providers` with a placeholder key — Ready
 #     means compiled, admitted and bootable, no model is called;
 #   * no UI (the chart has no switch; zero replicas keep the Deployment
@@ -58,11 +60,7 @@ substrateWorkerPool:
 
 database:
   postgres:
-    bundled:
-      resources:
-        requests:
-          cpu: 100m
-          memory: 128Mi
+    role: ""
 
 providers:
   default: anthropic

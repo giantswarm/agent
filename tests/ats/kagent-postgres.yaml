@@ -1,0 +1,56 @@
+# The database of the kagent release the ATS runtime installs (conftest.py
+# install_kagent applies this into the kagent namespace before the chart). The
+# kagent chart bundles no database: the controller reads its connection string
+# from the Secret kagent-postgres (database.postgres.connectionStringSecretRef).
+# The shape of the kagent line's own kind recipe (giantswarm/kagent-upstream
+# scripts/fork/dev-postgres.sh): no TLS, no password, trusted inside the
+# cluster; the login user owns the database, so the release assumes no role
+# (values-kagent.yaml database.postgres.role: ""). For a kind cluster only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kagent-postgresql
+  labels: {app.kubernetes.io/name: kagent-postgresql}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: kagent-postgresql}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: kagent-postgresql}
+    spec:
+      containers:
+        - name: postgresql
+          image: docker.io/library/postgres:18.6-alpine3.23
+          env:
+            - {name: POSTGRES_DB, value: kagent}
+            - {name: POSTGRES_USER, value: postgres}
+            - {name: POSTGRES_HOST_AUTH_METHOD, value: trust}
+          ports:
+            - {name: postgresql, containerPort: 5432}
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, postgres, -d, kagent]
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kagent-postgresql
+spec:
+  selector: {app.kubernetes.io/name: kagent-postgresql}
+  ports:
+    - {name: postgresql, port: 5432, targetPort: postgresql}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kagent-postgres
+type: Opaque
+stringData:
+  connectionString: postgresql://postgres@kagent-postgresql.kagent.svc:5432/kagent?sslmode=disable

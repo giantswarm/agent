@@ -20,7 +20,8 @@ this chart, so the ``runtime`` fixture brings it up, in this order, idempotent:
      Giant Swarm line into ate-system with its bundled database and snapshot
      store (values-substrate.yaml);
   3. the kagent chart of the Giant Swarm line into the kagent namespace with
-     Substrate wiring, its WorkerPool of gVisor workers, the bundled database,
+     Substrate wiring, its WorkerPool of gVisor workers, a dev database
+     (kagent-postgres.yaml, applied first),
      the default ModelConfig with a placeholder provider key and no UI
      (values-kagent.yaml);
   4. the platform Harness — the Go ADK runtime image by digest, the WorkerPool
@@ -96,15 +97,15 @@ DISCOVERY_LABEL = "kagent.dev/discovery"
 
 # The kagent line (giantswarm/kagent-upstream), a release tag `vX.Y.Z` without
 # the `v`: the kagent chart and the controller image carry this version.
-KAGENT_LINE = "1.9.0"
+KAGENT_LINE = "1.11.5"
 KAGENT_CHARTS = "oci://gsoci.azurecr.io/giantswarm/kagent/helm"
 # The Go ADK runtime image of that release, by digest — the image index digest
 # `crane digest gsoci.azurecr.io/giantswarm/kagent/golang-adk:<KAGENT_LINE>`
 # reports. Renovate moves it with KAGENT_LINE (renovate-custom.json5).
-HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:d06521a88120b929ded34af95de4463ed10f5efe0e180db1daeca14cdb7071db"
+HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:ac59df04d4314b76ed0fbab4c5f8754a7e538531619995982a6a4146bf20f000"
 # The Substrate line (giantswarm/substrate), a release tag without the `v`: the
 # substrate chart, its control-plane images and the gVisor worker image.
-SUBSTRATE_LINE = "1.8.1"
+SUBSTRATE_LINE = "1.11.1"
 SUBSTRATE_CHARTS = "oci://gsoci.azurecr.io/giantswarm/substrate/helm"
 WORKER_IMAGE = f"gsoci.azurecr.io/giantswarm/substrate/ateom-gvisor:{SUBSTRATE_LINE}"
 
@@ -127,6 +128,8 @@ BOOTSTRAP_MANIFEST = ATS_DIR / "substrate-bootstrap.yaml"
 BOOTSTRAP_JOB = "substrate-bootstrap"
 SUBSTRATE_VALUES = ATS_DIR / "values-substrate.yaml"
 KAGENT_VALUES = ATS_DIR / "values-kagent.yaml"
+KAGENT_DATABASE_MANIFEST = ATS_DIR / "kagent-postgres.yaml"
+KAGENT_DATABASE = "kagent-postgresql"
 
 # Budgets. The runtime comes up once per cluster (the functional scenario finds
 # it installed); a golden boot pulls the Go ADK image into the worker the first
@@ -388,12 +391,18 @@ def install_kagent(kube: Kube, helm: Helm) -> None:
         return
     started = time.monotonic()
     try:
+        # The chart bundles no database: the controller needs the Secret
+        # kagent-postgres and a database behind it before it starts.
+        kube.ensure_namespace(KAGENT_NAMESPACE)
+        kube.cmd(["-n", KAGENT_NAMESPACE, "apply", "-f", str(KAGENT_DATABASE_MANIFEST)])
+        r = kube.cmd(["-n", KAGENT_NAMESPACE, "rollout", "status", f"deployment/{KAGENT_DATABASE}", "--timeout=5m"], check=False)
+        assert r.returncode == 0, f"the kagent database {KAGENT_DATABASE} did not become ready:\n{r.stdout}\n{r.stderr}"
         helm.install(KAGENT_RELEASE, f"{KAGENT_CHARTS}/kagent", KAGENT_NAMESPACE, values=[KAGENT_VALUES],
                      sets=[f"substrateWorkerPool.workerImage={WORKER_IMAGE}"], version=KAGENT_LINE)
     except AssertionError:
         dump_kagent(kube)
         raise
-    TIMINGS.record(f"kagent {KAGENT_LINE} installed (controller, bundled postgres, WorkerPool {WORKER_POOL})", time.monotonic() - started)
+    TIMINGS.record(f"kagent {KAGENT_LINE} installed (controller, postgres, WorkerPool {WORKER_POOL})", time.monotonic() - started)
 
 
 def worker_pool_ready(kube: Kube, name: str, namespace: str = KAGENT_NAMESPACE) -> int:
