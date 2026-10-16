@@ -1,8 +1,8 @@
 version: 2.1
 orbs:
-  architect: giantswarm/architect@dev:fix-catalog-push-race
+  architect: giantswarm/architect@dev:16ff90f8ec2d9bd4e594cc43e8642b2dbb6bed92
 
-# Proof of giantswarm/architect-orb#1012: 12 chart pushes race for giantswarm-test-catalog at once.
+# Proof of architect orb v10.13.8-rc.2: 12 chart pushes race for giantswarm-test-catalog at once.
 workflows:
   build:
     jobs:
