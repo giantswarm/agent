@@ -1,0 +1,4 @@
+# ct lint case: a toolset of selectors, rendered as the X-Muster-Toolset header.
+toolset:
+  - preset:read-only
+  - workflow:incident-triage

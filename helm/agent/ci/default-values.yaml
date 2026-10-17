@@ -1,0 +1,3 @@
+# ct lint case: the default values, toolset unset (implicit full access).
+# ct lints each ci/*-values.yaml in place of the bare defaults, so the
+# default shape needs its own case.
