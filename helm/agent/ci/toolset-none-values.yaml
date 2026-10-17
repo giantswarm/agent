@@ -1,0 +1,3 @@
+# ct lint case: an agent without tools, toolset exactly ["preset:none"].
+toolset:
+  - preset:none

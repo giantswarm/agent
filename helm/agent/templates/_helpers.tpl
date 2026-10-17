@@ -133,11 +133,17 @@ presets. Fails the render with the offending selector.
 
 {{/*
 "true" when the toolset is exactly ["preset:none"]: the agent has no tools,
-so neither the RemoteMCPServer nor the muster binding is rendered.
+so neither the RemoteMCPServer nor the muster binding is rendered. The ifs
+are nested: Helm built with Go before 1.18 (the ct image) evaluates every
+argument of `and`, so `len` would run on an unset toolset.
 */}}
 {{- define "agent.toolset.isNone" -}}
 {{- $ts := .Values.toolset -}}
-{{- if and (kindIs "slice" $ts) (eq (len $ts) 1) (eq (index $ts 0) "preset:none") -}}true{{- end -}}
+{{- if kindIs "slice" $ts -}}
+  {{- if eq (len $ts) 1 -}}
+    {{- if eq (index $ts 0) "preset:none" -}}true{{- end -}}
+  {{- end -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
