@@ -545,22 +545,84 @@ tests:
       - failedTemplate:
           errorPattern: 'plugins[./]0'
 
-  - it: refuses a plugin without a skill selection
+  - it: renders a plugin without a skill selection (a Claude Code format plugin loads whole)
     set:
       plugins:
-        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        - git:
+            url: https://github.com/example/claude-plugins
+            commit: 0123456789abcdef0123456789abcdef01234567
+          path: plugins/review
     asserts:
-      - failedTemplate:
-          errorPattern: 'plugins[./]0.*skills'
+      - equal:
+          path: spec.template.plugins
+          value:
+            - source:
+                git:
+                  url: https://github.com/example/claude-plugins
+                  commit: 0123456789abcdef0123456789abcdef01234567
+                path: plugins/review
 
-  - it: refuses an empty skill selection on a plugin
+  - it: renders an empty skill selection without the skills key
     set:
       plugins:
         - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
           skills: []
     asserts:
+      - equal:
+          path: spec.template.plugins
+          value:
+            - source:
+                oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+  - it: refuses an empty skill name on a plugin
+    set:
+      plugins:
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills:
+            - ""
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins[./]0[./]skills[./]0'
+
+  - it: refuses a skill selected twice in one plugin
+    set:
+      plugins:
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills:
+            - triage
+            - triage
+    asserts:
       - failedTemplate:
           errorPattern: 'plugins[./]0[./]skills'
+
+  - it: refuses a plugin skill whose name skills[] already uses, naming both entries
+    set:
+      skills:
+        - name: triage
+          oci: registry.example.io/skills/triage@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      plugins:
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills:
+            - k8s
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins\[0\]\.skills\[1\] "triage" is already used by skills\[0\]'
+
+  - it: refuses a skill two plugins select, naming both entries
+    set:
+      plugins:
+        - oci: registry.example.io/plugins/sre@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          skills:
+            - triage
+        - git:
+            url: https://github.com/example/plugins
+            commit: 0123456789abcdef0123456789abcdef01234567
+          skills:
+            - triage
+    asserts:
+      - failedTemplate:
+          errorPattern: 'plugins\[1\]\.skills\[0\] "triage" is already used by plugins\[0\]\.skills\[0\]'
 
   - it: refuses a plugin path with a .. segment
     set:
