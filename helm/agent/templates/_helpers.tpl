@@ -187,17 +187,27 @@ origin fails the render naming the entry, before the API server does.
 {{- end -}}
 
 {{/*
-Validate the skills beyond what the values schema can express: names are
-unique. Everything else (exactly one of git/oci, full commit id, digest-pinned
-image, relative path) is the schema's job. Fails the render naming the entry.
+Validate the skills beyond what the values schema can express: a skill name is
+enabled once across skills[] and every plugin's selection, which the Harness
+refuses otherwise. Everything else (exactly one of git/oci, full commit id,
+digest-pinned image, relative path) is the schema's job. Fails the render
+naming the entry.
 */}}
 {{- define "agent.skills.validate" -}}
 {{- $seen := dict -}}
 {{- range $i, $skill := .Values.skills -}}
   {{- if hasKey $seen $skill.name -}}
-    {{- fail (printf "skills[%d].name %q is already used by skills[%v]: skill names must be unique" $i $skill.name (get $seen $skill.name)) -}}
+    {{- fail (printf "skills[%d].name %q is already used by %s: skill names must be unique" $i $skill.name (get $seen $skill.name)) -}}
   {{- end -}}
-  {{- $_ := set $seen $skill.name $i -}}
+  {{- $_ := set $seen $skill.name (printf "skills[%d]" $i) -}}
+{{- end -}}
+{{- range $i, $plugin := .Values.plugins -}}
+  {{- range $j, $name := $plugin.skills -}}
+    {{- if hasKey $seen $name -}}
+      {{- fail (printf "plugins[%d].skills[%d] %q is already used by %s: skill names must be unique" $i $j $name (get $seen $name)) -}}
+    {{- end -}}
+    {{- $_ := set $seen $name (printf "plugins[%d].skills[%d]" $i $j) -}}
+  {{- end -}}
 {{- end -}}
 {{- end -}}
 
@@ -239,7 +249,6 @@ every git source carries credentialRef {name, key: token} (one credential fans
 out to every git skill).
 */}}
 {{- define "agent.skills" -}}
-{{- include "agent.skills.validate" . -}}
 {{- $credential := (.Values.skillsGitAuthSecretRef | default dict).name -}}
 {{- range $i, $skill := .Values.skills }}
 - name: {{ $skill.name | quote }}
@@ -250,16 +259,18 @@ out to every git skill).
 
 {{/*
 The template's spec.plugins: every value entry {git|oci, path, skills} as a
-{source: {git|oci, path}, skills} item. The same credential as the skills
-reaches every git plugin.
+{source: {git|oci, path}, skills} item, skills only when the entry selects
+some. The same credential as the skills reaches every git plugin.
 */}}
 {{- define "agent.plugins" -}}
 {{- $credential := (.Values.skillsGitAuthSecretRef | default dict).name -}}
 {{- range $i, $plugin := .Values.plugins }}
 - source:
     {{- include "agent.artifactSource" (dict "entry" $plugin "field" (printf "plugins[%d]" $i) "credential" $credential) | nindent 4 }}
+  {{- with $plugin.skills }}
   skills:
-    {{- toYaml $plugin.skills | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}
 {{- end -}}
 
@@ -268,6 +279,7 @@ The curated template spec (the Agent's spec.template) built from the values
 contract.
 */}}
 {{- define "agent.curatedSpec" -}}
+{{- include "agent.skills.validate" . -}}
 {{- with .Values.agent.description }}
 description: {{ . | quote }}
 {{- end }}

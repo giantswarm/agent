@@ -167,15 +167,18 @@ context:
 skills: []
 
 # @schema type:array;itemRef:plugin.schema.json;maxItems:20
-# -- (list) Agent Plugins bundles, each pinned to an immutable source like a
-# skill, with the skills to enable from the bundle. An entry is `{git: {url,
-# commit}, path, skills: [...]}` or `{oci: <ref@sha256:...>, path, skills:
-# [...]}`; `skills` names the bundle's skills to enable (at least one, unique)
-# and is the only selection: a plugin enables nothing else. Rendered into the
-# Agent's spec.template.plugins[] as `{source: {git | oci, path}, skills}`.
-# The pinning rules of `skills` apply (a branch, a tag, a short SHA or an OCI
-# tag fails the render), and `skillsGitAuthSecretRef` reaches every git plugin
-# the way it reaches every git skill.
+# -- (list) Plugins, each pinned to an immutable source like a skill. An entry
+# is `{git: {url, commit}, path, skills: [...]}` or `{oci: <ref@sha256:...>,
+# path, skills: [...]}`. An Agent Plugins format package (`plugin.json` at its
+# root) enables only the skills `skills` names (optional, unique, never a name
+# `skills[]` or another plugin already uses), and its `mcp.json` servers load
+# either way. A Claude Code format plugin (`.claude-plugin/plugin.json`) loads
+# whole on the `claude` Harness, its hooks, commands and subagents included,
+# and needs no `skills`. Rendered into the Agent's spec.template.plugins[] as
+# `{source: {git | oci, path}, skills}`, `skills` only when set. The pinning
+# rules of `skills[]` apply (a branch, a tag, a short SHA or an OCI tag fails
+# the render), and `skillsGitAuthSecretRef` reaches every git plugin the way it
+# reaches every git skill.
 plugins: []
 
 # -- One read credential for every private git skill and git plugin. The chart
