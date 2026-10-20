@@ -110,24 +110,54 @@ the chart itself carries no branch.
 
 ### Plugins
 
-A plugin is an Agent Plugins bundle: one immutable source (pinned like a
-skill) and the names of the bundle's skills to enable. Nothing else in the
-bundle reaches the agent:
+A plugin is a package pinned to one immutable source, like a skill, with the
+names of the skills to enable from it:
 
 ```yaml
 plugins:
   - git:
-      url: https://github.com/example/agent-plugins
-      commit: 0123456789abcdef0123456789abcdef01234567
-    path: bundles/sre
-    skills: [triage, postmortem]
+      url: https://github.com/agentplugins/agent-plugins-example.git
+      commit: 5f3f5084a821aefa792e79500dd8f0462ab83473
+    skills: [migrate-agent-plugin]
   - oci: registry.example.io/plugins/sre@sha256:<digest>
+    path: bundles/sre
     skills: [k8s]
 ```
 
 Rendered into `spec.template.plugins[]` as `{source: {git | oci, path},
-skills}`. The schema refuses an entry without a source, with two sources, with
-a mutable source or without at least one skill name.
+skills}`. The schema refuses an entry without a source, with two sources or
+with a mutable source. A skill name is enabled once across `skills[]` and
+every plugin's selection.
+
+The format is decided by the manifest in the plugin's directory. A root
+`plugin.json` makes it an Agent Plugins package. A `.claude-plugin/plugin.json`
+alone makes it a Claude Code format plugin. A package with both manifests is
+Agent Plugins on every Harness. Which parts load depends on the Harness:
+
+| Part | `kagent` | `claude` | `codex` | omp |
+|---|---|---|---|---|
+| Selected skills of an Agent Plugins package | yes | yes | yes | yes |
+| A Claude Code format plugin, whole: its skills, hooks, commands and subagents | refused | yes | refused | not loaded |
+| `mcp.json` servers | yes, within the agent's egress | ignored | ignored | ignored |
+
+- `skills` selects from an Agent Plugins package; an empty or missing
+  selection enables none of its skills. A Claude Code format plugin needs no
+  selection: on `claude` it loads whole and the selection is ignored.
+- Do not rely on a plugin's `mcp.json`. Only `kagent` starts those servers.
+  A server an agent needs on every Harness is a muster registration, bound
+  through `muster.tools`.
+- `kagent` and `codex` read the Agent Plugins format only, so they refuse a
+  Claude Code format plugin. agent-manager refuses a git source at write
+  time (`create_agent`, `validate_agent` and `update_agent`, a Harness change
+  included): on `codex`, and on `kagent` from
+  agent-manager 2.8.0. An OCI source is judged at the
+  golden boot: the Agent stays `Ready=False` with reason
+  `ActorTemplateRetrying`, and its message names the format.
+- The fix in both cases is a root `plugin.json` (the
+  [Agent Plugins](https://agent-plugins.org) manifest) beside the
+  `.claude-plugin/plugin.json`. The package is then Agent Plugins everywhere:
+  its selected skills load on every Harness, and its hooks, commands and
+  subagents load on none, `claude` included.
 
 ### Private skill repositories
 
