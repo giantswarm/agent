@@ -207,10 +207,19 @@ agent:
   egress:
     - https://github.com:443
     - https://*.githubusercontent.com   # raw.githubusercontent.com, one label
+    - tls://orders-db.example.com:5432  # TLS passthrough, port required
 ```
 
-- An origin is `http(s)://<host>[:<port>]` with **no path**. A path, a query
-  or a bare host name fails the render, naming the entry.
+- An origin is `http(s)://<host>[:<port>]` or `tls://<host>:<port>`, with
+  **no path**. A path, a query, a bare host name or a `tls://` entry without a
+  port fails the render, naming the entry.
+- A `tls://` origin is TLS that the egress gateway forwards without decrypting
+  it, matched on the SNI server name: a database or message broker that speaks
+  TLS from its first byte. The client must send SNI. A protocol that upgrades
+  to TLS after a cleartext exchange (STARTTLS, PostgreSQL's
+  SSLRequest unless the client sets `sslnegotiation=direct`) does not pass. One host and port takes one protocol: an Agent with
+  a `tls://` and an `http(s)://` entry for the same host and port reports
+  `Compatible=False` and never becomes Ready.
 - The host may start with `*.`, which matches exactly one label, and needs two
   labels under it: `https://*.githubusercontent.com` is valid,
   `https://*.com` and `https://*` are not. No entry opens a whole top-level
@@ -234,9 +243,10 @@ reads like an outage, not a policy:
 A `403` or a reset on a host the agent should reach is a missing origin: add
 it and the next revision of the agent has it.
 
-**Traffic kinds.** Only HTTP(S) can be allowed today, by origin as above.
-TLS passthrough and raw TCP have no field in the chart yet; they follow once
-the platform ships them.
+**Traffic kinds.** HTTP(S) and TLS passthrough can be allowed, by origin as
+above; a `tls://` entry needs the kagent line from 1.21.0, whose Agent
+accepts it in `spec.egress`. Raw TCP has no field in the chart yet; it follows once the
+platform ships it.
 
 ### Readiness
 
