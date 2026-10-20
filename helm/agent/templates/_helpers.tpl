@@ -172,16 +172,17 @@ Description of the agent's RemoteMCPServer: names the agent and its toolset.
 {{- end -}}
 
 {{- /*
-agent.egress.validate mirrors the Agent CRD's rule for spec.egress so a bad
-origin fails the render naming the entry, before the API server does.
+agent.egress.validate mirrors the Agent CRD's rule for spec.egress (HTTP(S)
+origins and tls:// origins with a port) so a bad origin fails the render naming
+the entry, before the API server does.
 */ -}}
 {{- define "agent.egress.validate" -}}
 {{- range $i, $origin := .Values.agent.egress -}}
 {{- if ne (kindOf $origin) "string" -}}
 {{- fail (printf "agent.egress[%d] must be a string, got %s" $i (kindOf $origin)) -}}
 {{- end -}}
-{{- if not (regexMatch `^https?://(\*\.([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+|([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*)[a-z]([-a-z0-9]{0,61}[a-z0-9])?(:([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$` $origin) -}}
-{{- fail (printf "agent.egress[%d] %q is not an HTTP(S) origin: expected http(s)://<host>[:port] with no path, the host optionally starting with a *. wildcard label over at least two labels" $i $origin) -}}
+{{- if not (regexMatch `^(https?://(\*\.([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+|([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*)[a-z]([-a-z0-9]{0,61}[a-z0-9])?(:([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?|tls://(\*\.([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+|([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*)[a-z]([-a-z0-9]{0,61}[a-z0-9])?:([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))$` $origin) -}}
+{{- fail (printf "agent.egress[%d] %q is not an egress origin: expected http(s)://<host>[:port] or tls://<host>:<port> with no path, the host optionally starting with a *. wildcard label over at least two labels" $i $origin) -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

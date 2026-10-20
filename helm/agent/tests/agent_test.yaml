@@ -1059,7 +1059,7 @@ tests:
       - notExists:
           path: spec.template.context
 
-  # egress: Agent.spec.egress, HTTP(S) origins beyond what the revision compiles
+  # egress: Agent.spec.egress, HTTP(S) and tls:// origins beyond what the revision compiles
   - it: renders no spec.egress by default
     asserts:
       - notExists:
@@ -1101,6 +1101,66 @@ tests:
       agent:
         egress:
           - https://*.com
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
+
+  - it: renders tls:// egress origins next to HTTP(S) ones
+    set:
+      agent:
+        egress:
+          - https://github.com:443
+          - tls://db.example.com:5432
+          - tls://*.kafka.example.com:9093
+    asserts:
+      - equal:
+          path: spec.egress
+          value:
+            - https://github.com:443
+            - tls://db.example.com:5432
+            - tls://*.kafka.example.com:9093
+
+  - it: refuses a tls:// egress origin without a port through the values schema
+    set:
+      agent:
+        egress:
+          - tls://db.example.com
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
+
+  - it: refuses a tls:// egress origin with a path through the values schema
+    set:
+      agent:
+        egress:
+          - tls://db.example.com:5432/orders
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
+
+  - it: refuses a tls:// egress origin on an IP address through the values schema
+    set:
+      agent:
+        egress:
+          - tls://192.0.2.1:5432
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
+
+  - it: refuses a tls:// wildcard over every host through the values schema
+    set:
+      agent:
+        egress:
+          - tls://*:443
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egress'
+
+  - it: refuses an egress scheme other than http, https or tls through the values schema
+    set:
+      agent:
+        egress:
+          - tcp://git.example.com:22
     asserts:
       - failedTemplate:
           errorPattern: 'agent[./]egress'
