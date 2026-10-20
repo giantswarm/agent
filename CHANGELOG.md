@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `agent.egress` accepts `tls://<host>:<port>` entries: TLS that the egress gateway forwards without decrypting it, matched on the SNI server name, for a database or message broker that speaks TLS from its first byte. Same host rules as an HTTP(S) origin, and a port is required. The schema and the render refuse an entry without a port, with a path or on an IP address, naming it. Needs a kagent line release whose Agent accepts `tls://` in `spec.egress` (giantswarm/kagent-upstream#740); an older kagent refuses the Agent (giantswarm/agent#58).
+- `agent.egress` accepts `tls://<host>:<port>` entries: TLS that the egress gateway forwards without decrypting it, matched on the SNI server name, for a database or message broker that speaks TLS from its first byte. Same host rules as an HTTP(S) origin, and a port is required. The schema and the render refuse an entry without a port, with a path or on an IP address, naming it. Needs the kagent line from 1.21.0, whose Agent accepts `tls://` in `spec.egress` (giantswarm/kagent-upstream#740); an older kagent refuses the Agent (giantswarm/agent#58).
 
 - `agent.egress` (empty by default): HTTP(S) origins the agent may reach besides what its revision compiles, such as `https://github.com:443` or `https://*.githubusercontent.com` (one wildcard label, over at least two labels), rendered into the Agent's `spec.egress` (kagent-dev/kagent#3019, which the kagent line must carry; a kagent without the field prunes it). At most 64 unique origins; the chart refuses anything that is not an origin, naming the entry.
 
