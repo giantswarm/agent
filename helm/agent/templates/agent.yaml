@@ -23,5 +23,11 @@ spec:
   egress:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+  {{- with .Values.agent.egressPolicyRefs }}
+  egressPolicyRefs:
+    {{- range . }}
+    - name: {{ . | quote }}
+    {{- end }}
+  {{- end }}
   template:
     {{- include "agent.spec" . | nindent 4 }}

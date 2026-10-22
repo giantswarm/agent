@@ -261,6 +261,32 @@ agent:
   from the platform's per-Harness list, which agent-manager writes into
   `agent.egress`; another origin is refused there.
 
+**Picking an EgressPolicy.** A tenant's admins can bundle origins, and the
+credential header the gateway adds to them, into an `EgressPolicy` in the
+namespace (`kubectl -n <namespace> get egresspolicies.api.kagent.dev`). An
+agent picks one by name in `agent.egressPolicyRefs`, beside its own
+`agent.egress`; the chart renders the names into the Agent's
+`spec.egressPolicyRefs` and copies none of the policy's rules:
+
+```yaml
+agent:
+  egressPolicyRefs:
+    - github
+    - go-modules
+  egress:
+    - https://orders.example.com   # typed origins still work next to them
+```
+
+- At most 16 names, each a resource name, none twice; the schema refuses
+  anything else, naming the entry.
+- The policy is read where it lives: an origin added to it reaches every agent
+  that picks it from that agent's next Session, with no upgrade of the agent's
+  release.
+- A name with no EgressPolicy in the namespace leaves the Agent reporting it in
+  its status (`EgressPolicyNotFound`); its typed origins keep working.
+- An agent on a coding Harness reaches only its Harness's platform list:
+  agent-manager refuses a ref there.
+
 **What a denial looks like.** The platform answers a refused request, so it
 reads like an outage, not a policy:
 

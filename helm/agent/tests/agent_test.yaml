@@ -1174,3 +1174,64 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: 'agent[./]egress'
+
+  # egressPolicyRefs: Agent.spec.egressPolicyRefs, the namespace's EgressPolicies by name
+  - it: renders no spec.egressPolicyRefs by default
+    asserts:
+      - notExists:
+          path: spec.egressPolicyRefs
+
+  - it: renders agent.egressPolicyRefs as spec.egressPolicyRefs names next to spec.egress
+    set:
+      agent:
+        egress:
+          - https://example.com
+        egressPolicyRefs:
+          - github
+          - go-modules
+    asserts:
+      - equal:
+          path: spec.egressPolicyRefs
+          value:
+            - name: github
+            - name: go-modules
+      - equal:
+          path: spec.egress
+          value:
+            - https://example.com
+
+  - it: refuses an empty EgressPolicy name through the values schema
+    set:
+      agent:
+        egressPolicyRefs:
+          - ""
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egressPolicyRefs'
+
+  - it: refuses an EgressPolicy name that is not a resource name through the values schema
+    set:
+      agent:
+        egressPolicyRefs:
+          - GitHub
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egressPolicyRefs'
+
+  - it: refuses a repeated EgressPolicy name through the values schema
+    set:
+      agent:
+        egressPolicyRefs:
+          - github
+          - github
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egressPolicyRefs'
+
+  - it: refuses more than 16 EgressPolicy names through the values schema
+    set:
+      agent:
+        egressPolicyRefs: [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17]
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]egressPolicyRefs'
