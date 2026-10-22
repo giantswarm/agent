@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `muster.timeout` defaults to `60m` (was `180s`), muster's progress cap (an MCPServer's `progress.maxDuration`, at most an hour). kagent applies the RemoteMCPServer's `spec.timeout` to the whole request, and no MCP progress notification restarts it, so a wait that muster keeps alive by progress, devctl's `pr_wait`, `pr_merge` and `release_wait`, was cut after 180 s by the agent's own runtime while muster would have carried it to its verdict. muster still bounds every call by its backend's own `spec.timeout`, restarted by that backend's progress, so a backend without progress ends at its own budget as before.
+
 - `make helm-test` no longer runs the chart's helm-unittest suites twice: the hand-written target beside the generated one in `Makefile.gen.app.mk` (giantswarm/devctl#2570) is gone, so the helm-unittest version is pinned in one place. `make helm-lint` still runs as part of it, and `make helm-unittest-update` still re-records the snapshot.
 
 - `plugins[].skills` is optional. A Claude Code format plugin (`.claude-plugin/plugin.json`) loads whole on the `claude` Harness and needs no selection; an Agent Plugins format package without one enables none of its skills while its `mcp.json` servers still load. An entry without `skills` renders without the key. A skill name is enabled once across `skills[]` and every plugin's selection; the render fails naming both entries, as the Harness would at materialisation.

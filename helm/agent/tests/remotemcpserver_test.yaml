@@ -45,7 +45,7 @@ tests:
           value: muster MCP gateway of agent demo (implicit full access)
       - equal:
           path: spec.timeout
-          value: 180s
+          value: 60m
       - notExists:
           path: spec.headersFrom
 
@@ -72,7 +72,7 @@ tests:
             description: muster MCP gateway of agent demo (implicit full access)
             url: http://muster.agent-platform.svc.cluster.local:8090/mcp
             protocol: STREAMABLE_HTTP
-            timeout: 180s
+            timeout: 60m
 
   - it: follows agent.name
     set:

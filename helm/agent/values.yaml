@@ -234,10 +234,15 @@ muster:
   # kagent applies its own 30 s, which cuts a backend tool that legitimately
   # runs longer — a write that creates a repository and opens a pull request
   # in one call, a watch that blocks for minutes — although muster's own
-  # per-server budget for that backend allows more. The default matches the
-  # longest budget a muster backend declares in its spec.timeout, so a call is
-  # bounded by its backend, not by the caller.
-  timeout: 180s
+  # per-server budget for that backend allows more. The default is muster's
+  # progress cap (an MCPServer's `progress.maxDuration`, at most an hour):
+  # kagent applies the value to the whole request, which no MCP progress
+  # notification restarts, so a wait kept alive by progress (devctl's
+  # `pr_wait`, `pr_merge`, `release_wait`) returns its verdict in one call;
+  # muster still bounds every call by its backend's own `spec.timeout`,
+  # restarted by that progress, so a call is bounded by its backend, not by
+  # the caller.
+  timeout: 60m
   # @schema type:array;item:string;itemPattern:^\S+$;maxItems:50;uniqueItems:true
   # -- Set to narrow the binding to a subset of muster's meta-tools
   # (`list_tools`, `call_tool`, ...); leave empty to bind every tool. Rendered
