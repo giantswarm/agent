@@ -75,7 +75,7 @@ agent:
   # `{name}` entries; the chart copies none of a policy's rules, so a change
   # to the policy reaches the agent from its next Session without an upgrade
   # of this release. At most 16 unique names. A name with no EgressPolicy in
-  # the namespace leaves the Agent reporting it in its status.
+  # the namespace keeps the Agent from becoming Ready (ResolvedRefs=False).
   egressPolicyRefs: []
 
 # -- Which platform-provisioned ModelConfig the agent uses, referenced by name.

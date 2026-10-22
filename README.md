@@ -281,9 +281,11 @@ agent:
   anything else, naming the entry.
 - The policy is read where it lives: an origin added to it reaches every agent
   that picks it from that agent's next Session, with no upgrade of the agent's
-  release.
-- A name with no EgressPolicy in the namespace leaves the Agent reporting it in
-  its status (`EgressPolicyNotFound`); its typed origins keep working.
+  release. The Agent recompiles on the change and reports `Ready=False` until
+  its new revision is ready.
+- A name with no EgressPolicy in the namespace blocks the whole Agent:
+  `ResolvedRefs=False` with `resolve EgressPolicy "<namespace>/<name>": not
+  found`, and it is not Ready until the policy exists or the ref is removed.
 - An agent on a coding Harness reaches only its Harness's platform list:
   agent-manager refuses a ref there.
 

@@ -173,7 +173,7 @@
                 },
                 "egressPolicyRefs": {
                     "type": "array",
-                    "description": "Names of EgressPolicies in the agent's namespace whose origins (and credential headers) the agent may also reach, such as `github` or `go-modules`. Rendered into the Agent's spec.egressPolicyRefs as `{name}` entries; the chart copies none of a policy's rules, so a change to the policy reaches the agent from its next Session without an upgrade of this release. At most 16 unique names. A name with no EgressPolicy in the namespace leaves the Agent reporting it in its status.",
+                    "description": "Names of EgressPolicies in the agent's namespace whose origins (and credential headers) the agent may also reach, such as `github` or `go-modules`. Rendered into the Agent's spec.egressPolicyRefs as `{name}` entries; the chart copies none of a policy's rules, so a change to the policy reaches the agent from its next Session without an upgrade of this release. At most 16 unique names. A name with no EgressPolicy in the namespace keeps the Agent from becoming Ready (ResolvedRefs=False).",
                     "items": {
                         "type": "string",
                         "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
