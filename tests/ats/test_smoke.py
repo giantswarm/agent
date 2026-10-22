@@ -110,6 +110,6 @@ def test_default_values_reach_ready_with_a_remotemcpserver(kube: Kube, release: 
 
     server = wait_server_accepted(kube, DEFAULTS_RELEASE)
     assert server["metadata"]["labels"][DISCOVERY_LABEL] == "disabled"
-    # The chart's default: the longest budget a muster backend may declare, not kagent's 30 s.
-    assert server["spec"]["timeout"] == "180s"
+    # The chart's default: muster's progress cap, so a progress-kept wait is never cut by the caller.
+    assert server["spec"]["timeout"] == "60m"
     assert "headersFrom" not in server["spec"], server["spec"]
