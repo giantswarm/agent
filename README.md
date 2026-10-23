@@ -259,7 +259,16 @@ agent:
   agent's own spec, not a separate approval.
 - An agent on a coding Harness (a runtime other than `kagent`) gets its origins
   from the platform's per-Harness list, which agent-manager writes into
-  `agent.egress`; another origin is refused there.
+  `agent.egress`; another origin is refused there. agent-manager also sets
+  `agent.platformPrompt.egressNote`, and the chart appends a `## Network
+  access (set by the platform)` section to the system prompt that names those
+  origins and tells the agent that a refusal is policy, not an outage. The
+  section is the chart's, not part of `agent.systemMessage`: a chart release
+  updates its wording on every agent. A note found inside `systemMessage` (a
+  line that is the heading, and the paragraph after it) is replaced by the
+  chart's, with or without the flag, so values that still carry one render the
+  current note once. `extraAgentSpec.systemPrompt` replaces the whole prompt,
+  the note included.
 
 **Picking an EgressPolicy.** A tenant's admins can bundle origins, and the
 credential header the gateway adds to them, into an `EgressPolicy` in the
