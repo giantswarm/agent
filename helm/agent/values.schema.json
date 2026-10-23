@@ -211,7 +211,7 @@
                 },
                 "systemMessage": {
                     "type": "string",
-                    "description": "The agent's system prompt. Rendered into the Agent's spec.template.systemPrompt, followed by the sections of `platformPrompt`. At most 20000 characters; move long reference material into a skill. A prompt heavy in `<`, `>` or `&` can still exceed the runtime limit under this cap, and the Agent then reports why. A `## Network access (set by the platform)` heading and the paragraph after it are the platform's and are dropped from it: `platformPrompt.egressNote` renders that section.",
+                    "description": "The agent's system prompt. Rendered into the Agent's spec.template.systemPrompt, followed by the sections of `platformPrompt`. At most 20000 characters, the platform's sections not counted; move long reference material into a skill. A prompt heavy in `<`, `>` or `&` can still exceed the runtime limit under this cap, and the Agent then reports why. A line `## Network access (set by the platform)` and the paragraph after it are the platform's: the chart takes them out and appends its own network access note instead, as `platformPrompt.egressNote` does.",
                     "maxLength": 20000,
                     "minLength": 1
                 }

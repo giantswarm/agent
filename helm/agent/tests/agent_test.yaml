@@ -161,7 +161,9 @@ tests:
 
             Besides your model and your tools, your sandbox reaches only these origins: https://github.com, and the registries of the toolchains mounted under /opt/kagent/tools. A request to any other host is refused by the egress policy and shows up as a failed command or tool call (connection refused, reset or 403). It is not transient: do not retry it or work around it; say which host the task needs.
 
-  - it: drops a network access note from systemMessage and keeps the text around it
+  # Values written before platformPrompt carry the note in systemMessage and
+  # no flag: they render the chart's note, never none and never two.
+  - it: replaces a network access note in systemMessage without the flag and keeps the text around it
     set:
       agent:
         systemMessage: |-
@@ -180,6 +182,75 @@ tests:
 
             Open one pull request per repository.
 
+            ## Network access (set by the platform)
+
+            Besides your model and your tools, your sandbox reaches only the registries of the toolchains mounted under /opt/kagent/tools. A request to any other host is refused by the egress policy and shows up as a failed command or tool call (connection refused, reset or 403). It is not transient: do not retry it or work around it; say which host the task needs.
+
+  - it: replaces a network access note with CRLF line endings
+    set:
+      agent:
+        systemMessage: "You keep the GitOps repositories tidy.\r\n\r\n## Network access (set by the platform)\r\n\r\nBesides your model and your tools, your sandbox reaches only https://example.com.\r\n"
+    asserts:
+      - matchRegex:
+          path: spec.template.systemPrompt
+          pattern: '\AYou keep the GitOps repositories tidy\.\n\n## Network access \(set by the platform\)\n\nBesides your model and your tools, your sandbox reaches only the registries of the toolchains'
+
+  - it: replaces a network access note whose paragraph follows the heading directly and wraps over lines
+    set:
+      agent:
+        systemMessage: |-
+          You keep the GitOps repositories tidy.
+
+          ## Network access (set by the platform)
+          Besides your model and your tools, your sandbox reaches only
+          these origins: https://example.com.
+
+          Open one pull request per repository.
+    asserts:
+      - equal:
+          path: spec.template.systemPrompt
+          value: |-
+            You keep the GitOps repositories tidy.
+
+            Open one pull request per repository.
+
+            ## Network access (set by the platform)
+
+            Besides your model and your tools, your sandbox reaches only the registries of the toolchains mounted under /opt/kagent/tools. A request to any other host is refused by the egress policy and shows up as a failed command or tool call (connection refused, reset or 403). It is not transient: do not retry it or work around it; say which host the task needs.
+
+  - it: keeps the heading's text when it is not a line of its own
+    set:
+      agent:
+        systemMessage: |-
+          Never write a section titled ## Network access (set by the platform)
+
+          yourself; the platform owns it.
+    asserts:
+      - equal:
+          path: spec.template.systemPrompt
+          value: |-
+            Never write a section titled ## Network access (set by the platform)
+
+            yourself; the platform owns it.
+
+  - it: keeps the indentation a prompt starts with when it replaces a note
+    set:
+      agent:
+        systemMessage: "    make test\nRun this first.\n\n## Network access (set by the platform)\n\nBesides your model and your tools, your sandbox reaches only https://example.com."
+    asserts:
+      - matchRegex:
+          path: spec.template.systemPrompt
+          pattern: '\A    make test\nRun this first\.\n\n## Network access \(set by the platform\)\n\n'
+
+  - it: renders no network access note with platformPrompt set to null
+    set:
+      agent:
+        platformPrompt: null
+    asserts:
+      - equal:
+          path: spec.template.systemPrompt
+          value: You are a helpful agent.
+
   - it: renders only the network access note when systemMessage held nothing but one
     set:
       agent:
@@ -187,8 +258,6 @@ tests:
           ## Network access (set by the platform)
 
           Besides your model and your tools, your sandbox reaches only the registries of the toolchains mounted under /opt/kagent/tools.
-        platformPrompt:
-          egressNote: true
     asserts:
       - equal:
           path: spec.template.systemPrompt

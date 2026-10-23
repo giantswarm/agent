@@ -173,22 +173,25 @@ Description of the agent's RemoteMCPServer: names the agent and its toolset.
 
 {{- /*
 agent.systemPrompt is systemMessage followed by the sections of
-agent.platformPrompt. A network access note inside systemMessage (the heading
-and the paragraph after it) is dropped, so the prompt carries the note at most
-once and always in the chart's wording.
+agent.platformPrompt. A network access note inside systemMessage (a line that
+is the note's heading, and the paragraph after it up to the next blank line)
+is replaced by the chart's: the prompt carries the note once, in the chart's
+wording, whether or not agent.platformPrompt.egressNote is set.
 */ -}}
 {{- define "agent.systemPrompt" -}}
 {{- $prompt := .Values.agent.systemMessage -}}
-{{- $own := regexReplaceAll `\s*## Network access \(set by the platform\)\n\n[^\n]*` $prompt "" -}}
+{{- $egressNote := dig "platformPrompt" "egressNote" false .Values.agent -}}
+{{- $own := regexReplaceAll `(?m)\s*^[ \t]*## Network access \(set by the platform\)[ \t]*\r?$(?:\n[ \t]*\r?$)*(?:\n[^\r\n]*\S[^\r\n]*\r?$)*` $prompt "" -}}
 {{- if ne $own $prompt -}}
-{{- $prompt = trim $own -}}
+{{- $prompt = regexReplaceAll `\A(?:[ \t]*\r?\n)+` $own "" -}}
+{{- $egressNote = true -}}
 {{- end -}}
-{{- if .Values.agent.platformPrompt.egressNote -}}
-{{- $prompt = regexReplaceAll `\s+$` $prompt "" -}}
+{{- if $egressNote -}}
+{{- $prompt = regexReplaceAll `\s+\z` $prompt "" -}}
 {{- $note := include "agent.egressNote" . -}}
 {{- $prompt = ternary $note (printf "%s\n\n%s" $prompt $note) (eq $prompt "") -}}
 {{- end -}}
-{{- $prompt -}}
+{{- regexReplaceAll `\n+\z` $prompt "" -}}
 {{- end -}}
 
 {{- /*
@@ -318,8 +321,7 @@ description: {{ . | quote }}
 {{- end }}
 modelConfig:
   name: {{ .Values.modelConfig.name | quote }}
-systemPrompt: |-
-  {{- include "agent.systemPrompt" . | nindent 2 }}
+systemPrompt: {{ include "agent.systemPrompt" . | toJson }}
 {{- with .Values.skills }}
 skills:
   {{- include "agent.skills" $ | nindent 2 }}
