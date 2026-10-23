@@ -172,6 +172,38 @@ Description of the agent's RemoteMCPServer: names the agent and its toolset.
 {{- end -}}
 
 {{- /*
+agent.systemPrompt is systemMessage followed by the sections of
+agent.platformPrompt. A network access note inside systemMessage (the heading
+and the paragraph after it) is dropped, so the prompt carries the note at most
+once and always in the chart's wording.
+*/ -}}
+{{- define "agent.systemPrompt" -}}
+{{- $prompt := .Values.agent.systemMessage -}}
+{{- $own := regexReplaceAll `\s*## Network access \(set by the platform\)\n\n[^\n]*` $prompt "" -}}
+{{- if ne $own $prompt -}}
+{{- $prompt = trim $own -}}
+{{- end -}}
+{{- if .Values.agent.platformPrompt.egressNote -}}
+{{- $prompt = regexReplaceAll `\s+$` $prompt "" -}}
+{{- $note := include "agent.egressNote" . -}}
+{{- $prompt = ternary $note (printf "%s\n\n%s" $prompt $note) (eq $prompt "") -}}
+{{- end -}}
+{{- $prompt -}}
+{{- end -}}
+
+{{- /*
+agent.egressNote tells a coding agent what its sandbox reaches, so a refused
+request reads as policy rather than as an outage. A Session's toolchains bring
+origins of their own, which differ per Session, so the note names them by
+place.
+*/ -}}
+{{- define "agent.egressNote" -}}
+## Network access (set by the platform)
+
+Besides your model and your tools, your sandbox reaches only {{ with .Values.agent.egress }}these origins: {{ join ", " . }}, and {{ end }}the registries of the toolchains mounted under /opt/kagent/tools. A request to any other host is refused by the egress policy and shows up as a failed command or tool call (connection refused, reset or 403). It is not transient: do not retry it or work around it; say which host the task needs.
+{{- end -}}
+
+{{- /*
 agent.egress.validate mirrors the Agent CRD's rule for spec.egress (HTTP(S)
 origins and tls:// origins with a port) so a bad origin fails the render naming
 the entry, before the API server does.
@@ -287,7 +319,7 @@ description: {{ . | quote }}
 modelConfig:
   name: {{ .Values.modelConfig.name | quote }}
 systemPrompt: |-
-  {{- .Values.agent.systemMessage | nindent 2 }}
+  {{- include "agent.systemPrompt" . | nindent 2 }}
 {{- with .Values.skills }}
 skills:
   {{- include "agent.skills" $ | nindent 2 }}

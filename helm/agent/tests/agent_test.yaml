@@ -102,6 +102,119 @@ tests:
             You are an SRE assistant.
             Be concise.
 
+  # platform prompt
+  - it: appends the network access note naming agent.egress
+    set:
+      agent:
+        systemMessage: |
+          You keep the GitOps repositories tidy.
+        egress:
+          - https://github.com
+          - https://*.githubusercontent.com
+        platformPrompt:
+          egressNote: true
+    asserts:
+      - equal:
+          path: spec.template.systemPrompt
+          value: |-
+            You keep the GitOps repositories tidy.
+
+            ## Network access (set by the platform)
+
+            Besides your model and your tools, your sandbox reaches only these origins: https://github.com, https://*.githubusercontent.com, and the registries of the toolchains mounted under /opt/kagent/tools. A request to any other host is refused by the egress policy and shows up as a failed command or tool call (connection refused, reset or 403). It is not transient: do not retry it or work around it; say which host the task needs.
+
+  - it: names only the toolchain registries in the network access note without agent.egress
+    set:
+      agent:
+        platformPrompt:
+          egressNote: true
+    asserts:
+      - equal:
+          path: spec.template.systemPrompt
+          value: |-
+            You are a helpful agent.
+
+            ## Network access (set by the platform)
+
+            Besides your model and your tools, your sandbox reaches only the registries of the toolchains mounted under /opt/kagent/tools. A request to any other host is refused by the egress policy and shows up as a failed command or tool call (connection refused, reset or 403). It is not transient: do not retry it or work around it; say which host the task needs.
+
+  - it: replaces a network access note in systemMessage with the chart's
+    set:
+      agent:
+        systemMessage: |-
+          You keep the GitOps repositories tidy.
+
+          ## Network access (set by the platform)
+
+          Besides your model and your tools, your sandbox reaches only these origins: https://example.com, and an outdated wording.
+        egress:
+          - https://github.com
+        platformPrompt:
+          egressNote: true
+    asserts:
+      - equal:
+          path: spec.template.systemPrompt
+          value: |-
+            You keep the GitOps repositories tidy.
+
+            ## Network access (set by the platform)
+
+            Besides your model and your tools, your sandbox reaches only these origins: https://github.com, and the registries of the toolchains mounted under /opt/kagent/tools. A request to any other host is refused by the egress policy and shows up as a failed command or tool call (connection refused, reset or 403). It is not transient: do not retry it or work around it; say which host the task needs.
+
+  - it: drops a network access note from systemMessage and keeps the text around it
+    set:
+      agent:
+        systemMessage: |-
+          You keep the GitOps repositories tidy.
+
+          ## Network access (set by the platform)
+
+          Besides your model and your tools, your sandbox reaches only the registries of the toolchains mounted under /opt/kagent/tools.
+
+          Open one pull request per repository.
+    asserts:
+      - equal:
+          path: spec.template.systemPrompt
+          value: |-
+            You keep the GitOps repositories tidy.
+
+            Open one pull request per repository.
+
+  - it: renders only the network access note when systemMessage held nothing but one
+    set:
+      agent:
+        systemMessage: |-
+          ## Network access (set by the platform)
+
+          Besides your model and your tools, your sandbox reaches only the registries of the toolchains mounted under /opt/kagent/tools.
+        platformPrompt:
+          egressNote: true
+    asserts:
+      - equal:
+          path: spec.template.systemPrompt
+          value: |-
+            ## Network access (set by the platform)
+
+            Besides your model and your tools, your sandbox reaches only the registries of the toolchains mounted under /opt/kagent/tools. A request to any other host is refused by the egress policy and shows up as a failed command or tool call (connection refused, reset or 403). It is not transient: do not retry it or work around it; say which host the task needs.
+
+  - it: refuses a platformPrompt.egressNote that is not a boolean through the values schema
+    set:
+      agent:
+        platformPrompt:
+          egressNote: "yes"
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]platformPrompt[./]egressNote'
+
+  - it: refuses an unknown platformPrompt section through the values schema
+    set:
+      agent:
+        platformPrompt:
+          mood: cheerful
+    asserts:
+      - failedTemplate:
+          errorPattern: 'agent[./]platformPrompt'
+
   - it: references the ModelConfig by name
     set:
       modelConfig:

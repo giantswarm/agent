@@ -40,9 +40,12 @@ agent:
   # JSON escaping of the prompt and the rest of the compiled agent config.
   # @schema type:string;minLength:1;maxLength:20000
   # -- The agent's system prompt. Rendered into the Agent's
-  # spec.template.systemPrompt. At most 20000 characters; move long reference
-  # material into a skill. A prompt heavy in `<`, `>` or `&` can still exceed
-  # the runtime limit under this cap, and the Agent then reports why.
+  # spec.template.systemPrompt, followed by the sections of `platformPrompt`.
+  # At most 20000 characters; move long reference material into a skill. A
+  # prompt heavy in `<`, `>` or `&` can still exceed the runtime limit under
+  # this cap, and the Agent then reports why. A `## Network access (set by the
+  # platform)` heading and the paragraph after it are the platform's and are
+  # dropped from it: `platformPrompt.egressNote` renders that section.
   systemMessage: |
     You are a helpful agent.
   # @schema type:string;minLength:1;maxLength:63;pattern:^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
@@ -77,6 +80,19 @@ agent:
   # of this release. At most 16 unique names. A name with no EgressPolicy in
   # the namespace keeps the Agent from becoming Ready (ResolvedRefs=False).
   egressPolicyRefs: []
+  # -- Sections the platform appends to the system prompt, after
+  # `systemMessage`. The platform (agent-manager) sets them, not the agent's
+  # author: the chart owns their wording, so a chart release updates them on
+  # every agent, and an edit of `systemMessage` neither shows nor removes them.
+  platformPrompt:
+    # @schema type:boolean
+    # -- Append the network access note: a `## Network access (set by the
+    # platform)` section that names the origins of `egress` and the registries
+    # of the toolchains mounted under /opt/kagent/tools, and tells the agent
+    # that a request to any other host is refused by policy, not an outage to
+    # retry. agent-manager sets it on every agent on a coding Harness (any
+    # runtime but kagent's).
+    egressNote: false
 
 # -- Which platform-provisioned ModelConfig the agent uses, referenced by name.
 # kagent resolves it in the agent's own namespace. The chart never creates or
