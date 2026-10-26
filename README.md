@@ -137,7 +137,7 @@ Agent Plugins on every Harness. Which parts load depends on the Harness:
 | Part | `kagent` | `claude` | `codex` | omp |
 |---|---|---|---|---|
 | Selected skills of an Agent Plugins package | yes | yes | yes | yes |
-| A Claude Code format plugin, whole: its skills, hooks, commands and subagents | refused | yes | refused | not loaded |
+| A Claude Code format plugin, whole: its skills, hooks, commands and subagents | refused | yes | refused | refused |
 | `mcp.json` servers | yes, within the agent's egress | ignored | ignored | ignored |
 
 - `skills` selects from an Agent Plugins package; an empty or missing
@@ -146,11 +146,14 @@ Agent Plugins on every Harness. Which parts load depends on the Harness:
 - Do not rely on a plugin's `mcp.json`. Only `kagent` starts those servers.
   A server an agent needs on every Harness is a muster registration, bound
   through `muster.tools`.
-- `kagent` and `codex` read the Agent Plugins format only, so they refuse a
-  Claude Code format plugin. agent-manager refuses a git source at write
-  time (`create_agent`, `validate_agent` and `update_agent`, a Harness change
-  included): on `codex`, and on `kagent` from
-  agent-manager 2.8.0. An OCI source is judged at the
+- Claude Code does not read the Agent Plugins format. On `claude` the
+  Harness copies the selected skills into a Claude Code format plugin it
+  generates; a package's `mcp.json` is not part of it.
+- `kagent`, `codex` and omp read the Agent Plugins format only, so they
+  refuse a Claude Code format plugin. agent-manager refuses a git source at
+  write time (`create_agent`, `validate_agent` and `update_agent`, a Harness
+  change included): on `codex`, on `kagent` from agent-manager 2.8.0, and on
+  omp from agent-manager 2.15.0. An OCI source is judged at the
   golden boot: the Agent stays `Ready=False` with reason
   `ActorTemplateRetrying`, and its message names the format.
 - The fix in both cases is a root `plugin.json` (the
