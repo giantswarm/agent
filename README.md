@@ -181,14 +181,15 @@ What a Shared subagent can carry depends on the Harness:
 
 | Subagent | `kagent` | `claude` | `codex` | omp |
 |---|---|---|---|---|
-| Prompt and model | yes, except on an Anthropic ModelConfig ([kagent-dev/kagent#3387](https://github.com/kagent-dev/kagent/issues/3387)) | yes | yes | refused |
-| Its own skills | yes, same exception | refused ([kagent-dev/kagent#3386](https://github.com/kagent-dev/kagent/issues/3386)) | refused (#3386) | refused |
-| Its own MCP tools | yes, same exception | refused (#3386) | refused, until Codex lets a role reduce inherited MCP servers ([openai/codex#20135](https://github.com/openai/codex/issues/20135)) | refused, until omp scopes MCP tools per subagent ([can1357/oh-my-pi#8599](https://github.com/can1357/oh-my-pi/issues/8599)) |
+| Prompt and model | yes | yes | yes | yes |
+| Its own skills | yes | refused ([kagent-dev/kagent#3386](https://github.com/kagent-dev/kagent/issues/3386)) | refused (#3386) | yes |
+| Its own MCP tools | yes | refused (#3386) | refused, until Codex lets a role reduce inherited MCP servers ([openai/codex#20135](https://github.com/openai/codex/issues/20135)) | refused, until omp scopes MCP tools per subagent ([can1357/oh-my-pi#8599](https://github.com/can1357/oh-my-pi/issues/8599)) |
 | A subagent of its own (nested) | refused | refused | refused | refused |
 
-- On an Anthropic ModelConfig the `kagent` runtime sends the subagent tool
-  without its arguments, so the model's delegation fails and the agent
-  answers by itself.
+- This is the kagent line from 1.28.0. Before it, a `kagent` subagent on an
+  Anthropic ModelConfig was never called (the runtime sent the subagent tool
+  without its arguments, [kagent-dev/kagent#3387](https://github.com/kagent-dev/kagent/issues/3387)),
+  and omp refused every subagent.
 - A refusal is the Agent's `Compatible=False` condition, with the reason in
   its message; nothing reaches the runtime.
 - agent-manager refuses every `extraTools` entry on a coding Harness
