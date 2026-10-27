@@ -143,7 +143,8 @@ Agent Plugins on every Harness. Which parts load depends on the Harness:
 - `skills` selects from an Agent Plugins package; an empty or missing
   selection enables none of its skills. A Claude Code format plugin needs no
   selection: on `claude` it loads whole and the selection is ignored.
-- Do not rely on a plugin's `mcp.json`. Only `kagent` starts those servers.
+- Do not rely on a plugin's `mcp.json`. Only `kagent` starts those servers
+  ([kagent-dev/kagent#3388](https://github.com/kagent-dev/kagent/issues/3388)).
   A server an agent needs on every Harness is a muster registration, bound
   through `muster.tools`.
 - Claude Code does not read the Agent Plugins format. On `claude` the
@@ -161,6 +162,38 @@ Agent Plugins on every Harness. Which parts load depends on the Harness:
   `.claude-plugin/plugin.json`. The package is then Agent Plugins everywhere:
   its selected skills load on every Harness, and its hooks, commands and
   subagents load on none, `claude` included.
+
+### Subagents
+
+A Shared subagent is another `AgentTemplate` of the agent's namespace, bound
+through `extraTools` and compiled into the agent's own runtime:
+
+```yaml
+extraTools:
+  - subAgent:
+      name: code-cleaner
+      description: Narrowly scoped Go chores the caller describes.
+      templateRef:
+        name: code-cleaner
+```
+
+What a Shared subagent can carry depends on the Harness:
+
+| Subagent | `kagent` | `claude` | `codex` | omp |
+|---|---|---|---|---|
+| Prompt and model | yes, except on an Anthropic ModelConfig ([kagent-dev/kagent#3387](https://github.com/kagent-dev/kagent/issues/3387)) | yes | yes | refused |
+| Its own skills | yes, same exception | refused ([kagent-dev/kagent#3386](https://github.com/kagent-dev/kagent/issues/3386)) | refused (#3386) | refused |
+| Its own MCP tools | yes, same exception | refused (#3386) | refused, until Codex lets a role reduce inherited MCP servers ([openai/codex#20135](https://github.com/openai/codex/issues/20135)) | refused, until omp scopes MCP tools per subagent ([can1357/oh-my-pi#8599](https://github.com/can1357/oh-my-pi/issues/8599)) |
+| A subagent of its own (nested) | refused | refused | refused | refused |
+
+- On an Anthropic ModelConfig the `kagent` runtime sends the subagent tool
+  without its arguments, so the model's delegation fails and the agent
+  answers by itself.
+- A refusal is the Agent's `Compatible=False` condition, with the reason in
+  its message; nothing reaches the runtime.
+- agent-manager refuses every `extraTools` entry on a coding Harness
+  (`claude`, `codex`, omp), so a subagent binding there is set through the
+  chart's values directly.
 
 ### Private skill repositories
 
