@@ -322,6 +322,9 @@
                 }
             }
         },
+        "externalDNSIP": {
+            "type": "string"
+        },
         "extraAgentSpec": {
             "type": "object",
             "description": "Escape hatch: deep-merged over the curated template (this wins), so any api.kagent.dev/v1alpha3 AgentTemplateSpec field is reachable under the Agent's spec.template when the curated surface omits something. It reaches spec.template only, never spec.harnessRef, never the RemoteMCPServer and never the Harness.",
@@ -339,8 +342,18 @@
                 "object",
                 "null"
             ],
-            "description": "Global values shared between all subcharts",
-            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as this schema would otherwise not allow Helm's special 'global' values key."
+            "description": "Global values shared between all subcharts and the platform.",
+            "additionalProperties": true,
+            "properties": {
+                "podSecurityStandards": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "helm": {
+            "type": "object",
+            "additionalProperties": true
         },
         "labels": {
             "type": "object",
@@ -348,6 +361,9 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "managementCluster": {
+            "type": "string"
         },
         "modelConfig": {
             "type": "object",
