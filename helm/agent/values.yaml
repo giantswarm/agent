@@ -36,6 +36,12 @@ agent:
   # field); the Dev Portal reads it. Populated by the agent-creation
   # flows with the canonical avatar URL.
   iconUrl: ""
+  # @schema type:array;itemRef:tag.schema.json;maxItems:50;uniqueItems:true
+  # -- Free-form keywords for grouping and filtering agents (e.g. util,
+  # marketing); lowercase alphanumerics and hyphens, at most 50. Rendered as the
+  # comma-separated ui.giantswarm.io/tags annotation on the Agent; the Dev
+  # Portal reads it. Omitted when empty.
+  tags: []
   # 20000 characters leaves room in Substrate's 32768-character limit for the
   # JSON escaping of the prompt and the rest of the compiled agent config.
   # @schema type:string;minLength:1;maxLength:20000
