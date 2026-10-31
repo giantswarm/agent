@@ -368,6 +368,63 @@ tests:
           value:
             ui.giantswarm.io/icon-url: https://avatars.example.com/sre.svg
 
+  - it: renders tags as a comma-joined ui.giantswarm.io/tags annotation
+    set:
+      agent:
+        tags: [util, marketing-eu]
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            ui.giantswarm.io/tags: "util,marketing-eu"
+
+  - it: renders no tags annotation by default
+    asserts:
+      - notExists:
+          path: metadata.annotations["ui.giantswarm.io/tags"]
+
+  - it: refuses a tag that is not lowercase kebab-case
+    set:
+      agent:
+        tags: [Util]
+    asserts:
+      - failedTemplate: {}
+
+  - it: refuses duplicate tags
+    set:
+      agent:
+        tags: [util, util]
+    asserts:
+      - failedTemplate: {}
+
+  - it: refuses a tag longer than 63 characters
+    set:
+      agent:
+        tags: [aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]
+    asserts:
+      - failedTemplate: {}
+
+  - it: refuses an empty tag
+    set:
+      agent:
+        tags: [""]
+    asserts:
+      - failedTemplate: {}
+
+  - it: refuses more than 50 tags
+    set:
+      agent:
+        tags: [t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,t31,t32,t33,t34,t35,t36,t37,t38,t39,t40,t41,t42,t43,t44,t45,t46,t47,t48,t49,t50,t51]
+    asserts:
+      - failedTemplate: {}
+
+  - it: accepts exactly 50 tags
+    set:
+      agent:
+        tags: [t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,t31,t32,t33,t34,t35,t36,t37,t38,t39,t40,t41,t42,t43,t44,t45,t46,t47,t48,t49,t50]
+    asserts:
+      - notFailedTemplate: {}
+
   # skills
   - it: renders git and OCI skills as immutable sources
     set:

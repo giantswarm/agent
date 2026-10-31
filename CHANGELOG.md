@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `agent.tags` (empty by default): free-form keywords (lowercase alphanumerics and hyphens, unique, at most 50, up to 63 characters each), rendered as the comma-separated `ui.giantswarm.io/tags` annotation on the Agent when set (giantswarm/giantswarm#38901).
+
 - `agent.platformPrompt.egressNote` (`false` by default): appends the network access note, a `## Network access (set by the platform)` section naming the origins of `agent.egress` and the toolchain registries, to the Agent's `spec.template.systemPrompt`, after `agent.systemMessage`. agent-manager sets it on every agent on a coding Harness instead of writing the note into `agent.systemMessage`, so the person's prompt stays their own and a chart release updates the wording on every agent. A note found inside `agent.systemMessage` (a line that is its heading, and the paragraph after it up to the next blank line, in any line endings) is replaced by the chart's note at the end of the prompt, with or without the flag: an agent whose values carry the note agent-manager wrote before keeps exactly one note, in the chart's wording, when its release moves to this chart version (giantswarm/giantswarm#38803).
 
 - `spec.template.systemPrompt` is rendered as a quoted string instead of a `|-` block, so a prompt whose first line is indented renders instead of failing; trailing line breaks are still dropped.

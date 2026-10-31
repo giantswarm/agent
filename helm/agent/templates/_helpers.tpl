@@ -80,7 +80,8 @@ name.
 
 {{/*
 Annotations of the Agent: ui.giantswarm.io/display-name and
-ui.giantswarm.io/icon-url from agent.displayName / agent.iconUrl (when set),
+ui.giantswarm.io/icon-url and ui.giantswarm.io/tags from agent.displayName /
+agent.iconUrl / agent.tags (when set),
 next to .Values.annotations. Empty when there is nothing to render.
 */}}
 {{- define "agent.annotations" -}}
@@ -90,6 +91,9 @@ next to .Values.annotations. Empty when there is nothing to render.
 {{- end -}}
 {{- with .Values.agent.iconUrl -}}
 {{- $_ := set $annotations "ui.giantswarm.io/icon-url" . -}}
+{{- end -}}
+{{- with .Values.agent.tags -}}
+{{- $_ := set $annotations "ui.giantswarm.io/tags" (join "," .) -}}
 {{- end -}}
 {{- toYaml $annotations -}}
 {{- end -}}

@@ -142,6 +142,13 @@
                     }
                 }
             ]
+        },
+        "tag.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "string",
+            "$comment": "One entry of the `agent.tags` value: a lowercase kebab-case keyword. Referenced from values.yaml (`tags: [] # @schema itemRef:tag.schema.json`) and bundled into values.schema.json by the helm-schema pre-commit hook.",
+            "maxLength": 63,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
         }
     },
     "type": "object",
@@ -214,6 +221,15 @@
                     "description": "The agent's system prompt. Rendered into the Agent's spec.template.systemPrompt, followed by the sections of `platformPrompt`. At most 20000 characters, the platform's sections not counted; move long reference material into a skill. A prompt heavy in `<`, `>` or `&` can still exceed the runtime limit under this cap, and the Agent then reports why. A line `## Network access (set by the platform)` and the paragraph after it are the platform's: the chart takes them out and appends its own network access note instead, as `platformPrompt.egressNote` does.",
                     "maxLength": 20000,
                     "minLength": 1
+                },
+                "tags": {
+                    "type": "array",
+                    "description": "Free-form keywords for grouping and filtering agents (e.g. util, marketing); lowercase alphanumerics and hyphens, at most 50. Rendered as the comma-separated ui.giantswarm.io/tags annotation on the Agent; the Dev Portal reads it. Omitted when empty.",
+                    "items": {
+                        "$ref": "#/$defs/tag.schema.json"
+                    },
+                    "maxItems": 50,
+                    "uniqueItems": true
                 }
             }
         },
