@@ -330,8 +330,9 @@ extraTools: []
 # tenant/owner dimensions. They win over the standard set on both objects.
 labels: {}
 # @schema type:object;additionalProperties:{"type":"string"}
-# -- Extra annotations merged next to the display-name and icon-url
-# annotations on the Agent.
+# -- Extra annotations merged next to the display-name, icon-url and tags
+# annotations on the Agent. ui.giantswarm.io/display-name, icon-url and tags
+# are refused here; set agent.displayName, agent.iconUrl and agent.tags.
 annotations: {}
 
 # @schema type:object;additionalProperties:true

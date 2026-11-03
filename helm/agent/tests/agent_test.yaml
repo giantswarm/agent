@@ -383,6 +383,36 @@ tests:
       - notExists:
           path: metadata.annotations["ui.giantswarm.io/tags"]
 
+  - it: refuses ui.giantswarm.io/tags in annotations
+    set:
+      agent:
+        tags: []
+      annotations:
+        ui.giantswarm.io/tags: "x"
+    asserts:
+      - failedTemplate:
+          errorPattern: 'annotations\["ui.giantswarm.io/tags"\] is set by the chart: use agent.tags'
+
+  - it: refuses ui.giantswarm.io/display-name in annotations
+    set:
+      agent:
+        tags: []
+      annotations:
+        ui.giantswarm.io/display-name: "x"
+    asserts:
+      - failedTemplate:
+          errorPattern: 'annotations\["ui.giantswarm.io/display-name"\] is set by the chart: use agent.displayName'
+
+  - it: refuses ui.giantswarm.io/icon-url in annotations
+    set:
+      agent:
+        tags: []
+      annotations:
+        ui.giantswarm.io/icon-url: "x"
+    asserts:
+      - failedTemplate:
+          errorPattern: 'annotations\["ui.giantswarm.io/icon-url"\] is set by the chart: use agent.iconUrl'
+
   - it: refuses a tag that is not lowercase kebab-case
     set:
       agent:

@@ -235,7 +235,7 @@
         },
         "annotations": {
             "type": "object",
-            "description": "Extra annotations merged next to the display-name and icon-url annotations on the Agent.",
+            "description": "Extra annotations merged next to the display-name, icon-url and tags annotations on the Agent. ui.giantswarm.io/display-name, icon-url and tags are refused here; set agent.displayName, agent.iconUrl and agent.tags.",
             "additionalProperties": {
                 "type": "string"
             }

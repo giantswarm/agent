@@ -79,12 +79,19 @@ name.
 {{- end -}}
 
 {{/*
-Annotations of the Agent: ui.giantswarm.io/display-name and
+Annotations of the Agent: ui.giantswarm.io/display-name,
 ui.giantswarm.io/icon-url and ui.giantswarm.io/tags from agent.displayName /
-agent.iconUrl / agent.tags (when set),
-next to .Values.annotations. Empty when there is nothing to render.
+agent.iconUrl / agent.tags (when set), next to .Values.annotations. Those three
+keys are refused in .Values.annotations, where they would skip the schema of
+the agent.* values. Empty when there is nothing to render.
 */}}
 {{- define "agent.annotations" -}}
+{{- $reserved := dict "ui.giantswarm.io/display-name" "agent.displayName" "ui.giantswarm.io/icon-url" "agent.iconUrl" "ui.giantswarm.io/tags" "agent.tags" -}}
+{{- range $key, $value := $reserved -}}
+{{- if hasKey $.Values.annotations $key -}}
+{{- fail (printf "annotations[%q] is set by the chart: use %s" $key $value) -}}
+{{- end -}}
+{{- end -}}
 {{- $annotations := deepCopy .Values.annotations -}}
 {{- with .Values.agent.displayName -}}
 {{- $_ := set $annotations "ui.giantswarm.io/display-name" . -}}
