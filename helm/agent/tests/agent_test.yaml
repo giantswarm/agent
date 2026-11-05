@@ -14,6 +14,10 @@ templates:
 release:
   name: demo
   namespace: demo-ns
+# modelConfig.name has no default; every test names a model unless it tests
+# the refusal.
+set:
+  modelConfig.name: demo-model
 tests:
   - it: renders the default values (golden)
     asserts:
@@ -49,7 +53,7 @@ tests:
           path: spec.template.plugins
       - equal:
           path: spec.template.modelConfig.name
-          value: default-model-config
+          value: demo-model
       - equal:
           path: spec.template.systemPrompt
           value: You are a helpful agent.
@@ -283,6 +287,22 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: 'agent[./]platformPrompt'
+
+  - it: refuses a release without modelConfig.name
+    set:
+      modelConfig:
+        name: null
+    asserts:
+      - failedTemplate:
+          errorPattern: 'modelConfig'
+
+  - it: refuses an empty modelConfig.name
+    set:
+      modelConfig:
+        name: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: 'modelConfig[./]name'
 
   - it: references the ModelConfig by name
     set:

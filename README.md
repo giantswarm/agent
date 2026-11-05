@@ -43,7 +43,10 @@ It never touches:
   becomes Ready;
 - **`ModelConfig`** CRs and the `Secret`s they reference (LLM credentials) —
   platform-owned, provisioned per tenant namespace. The chart wires the agent
-  to one **by name** (`modelConfig.name`, default `default-model-config`).
+  to one **by name** (`modelConfig.name`, required, no default). The
+  namespace's default model is the ModelConfig labelled
+  `agent-platform.giantswarm.io/is-default-model-config: "true"`; the chart
+  looks nothing up, so name it (or another ModelConfig) explicitly.
 
 ## Usage
 
@@ -51,6 +54,9 @@ Install with whatever you already use for Helm charts (Argo CD, Flux
 `HelmRelease`, `helm install`). A minimal values file yields a working agent:
 
 ```yaml
+modelConfig:
+  name: claude-sonnet                 # a ModelConfig in the agent's namespace; required
+
 agent:
   displayName: "SRE Assistant"        # Unicode, becomes the ui.giantswarm.io/display-name annotation
   description: Helps the SRE team triage incidents.
@@ -378,6 +384,18 @@ fail with a legible error before anything hits the cluster.
 
 Upgrades are values changes plus a re-apply; uninstalling the release removes
 the agent. Pin the chart version for reproducibility.
+
+## Migrating from 2.x
+
+Chart 3.0 drops the default of `modelConfig.name` (it was
+`default-model-config`, a ModelConfig installations no longer ship). The value
+is required: the schema refuses a release without it, and the render fails
+with a message naming the default-model label. Set it to the namespace's
+default model, the ModelConfig labelled
+`agent-platform.giantswarm.io/is-default-model-config: "true"`
+(`kubectl get modelconfigs -n <namespace> -l agent-platform.giantswarm.io/is-default-model-config=true`),
+or to any other ModelConfig in the namespace. A release that already sets
+`modelConfig.name` upgrades unchanged.
 
 ## Migrating from 1.x
 
