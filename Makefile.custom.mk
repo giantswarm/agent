@@ -13,11 +13,11 @@ APPLICATION := agent
 
 .PHONY: helm-lint
 helm-lint: ## Lint the chart.
-	helm lint helm/agent --values helm/agent/ci/default-values.yaml
+	helm lint helm/agent --values helm/agent/ci/ci-values.yaml
 
 .PHONY: helm-template
 helm-template: ## Render the chart with defaults and the required modelConfig.name.
-	helm template agent helm/agent --values helm/agent/ci/default-values.yaml
+	helm template agent helm/agent --values helm/agent/ci/ci-values.yaml
 
 # Prerequisite-only, no recipe: make merges it into the generated helm-test
 # rule, which keeps its recipe (the helm-unittest run) and gains the lint.
