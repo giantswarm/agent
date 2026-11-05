@@ -558,8 +558,11 @@ def assert_all_conditions_true(entry: Dict[str, Any], generation: int) -> None:
 
 def install_release(helm: Helm, chart_archive: Path, release: str, values: Optional[Path] = None, sets: Optional[List[str]] = None) -> None:
     """`helm install` of a release of the chart under test into the Harness's
-    namespace. No --wait: the chart renders custom resources only, and the
-    readiness that matters is asserted by wait_agent_ready."""
+    namespace, bound to the ModelConfig the kagent release renders
+    (modelConfig.name has no default). No --wait: the chart renders custom
+    resources only, and the readiness that matters is asserted by
+    wait_agent_ready."""
+    sets = [f"modelConfig.name={MODEL_CONFIG}", *(sets or [])]
     helm.install(release, str(chart_archive), KAGENT_NAMESPACE, values=[values] if values else None, sets=sets, wait=False, timeout="2m")
 
 

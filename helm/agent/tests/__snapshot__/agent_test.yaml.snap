@@ -18,7 +18,7 @@ renders the default values (golden):
         name: kagent
       template:
         modelConfig:
-          name: default-model-config
+          name: demo-model
         systemPrompt: You are a helpful agent.
         tools:
           - mcp:

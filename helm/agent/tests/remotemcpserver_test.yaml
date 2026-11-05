@@ -10,6 +10,10 @@ templates:
 release:
   name: demo
   namespace: demo-ns
+# modelConfig.name has no default and the values schema refuses a release
+# without it, whatever template is rendered.
+set:
+  modelConfig.name: demo-model
 tests:
   - it: renders the default values (golden)
     asserts:

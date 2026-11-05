@@ -1,0 +1,8 @@
+# ct lint case: the default values plus the required modelConfig.name,
+# toolset unset (implicit full access).
+# ct lints each ci/*-values.yaml in place of the bare defaults, so the
+# default shape needs its own case. The check-values-schema workflow merges
+# this file (by its name) over values.yaml before validating against the
+# schema, and app-build-suite renders the chart with it (.abs/main.yaml).
+modelConfig:
+  name: demo-model

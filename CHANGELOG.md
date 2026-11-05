@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** Chart 3.0: `modelConfig.name` is required and has no default (it was `default-model-config`). The values schema refuses a release without a name, or with one that is not a valid Kubernetes object name. The chart looks nothing up: set `modelConfig.name` before upgrading, to the namespace's default model (the ModelConfig annotated `agent-platform.giantswarm.io/is-default-model-config: "true"`) or another ModelConfig in the agent's namespace. A release that already sets it upgrades unchanged (giantswarm/agent#124).
+
 ### Removed
 
 - Chart 2.0: the `kagent.dev/v1alpha3 AgentTemplate` and the admission label `agent-platform.giantswarm.io/harness`. The chart renders one `api.kagent.dev/v1alpha3 Agent` instead (see Changed); `Harness.spec.allowedAgentTemplates` no longer exists in the API, so no label selects a Harness. An upgrade of a 1.x release replaces the `AgentTemplate` with an `Agent` of the same name. The chart installs only on a platform that serves `api.kagent.dev` (kagent-dev/kagent#2952).

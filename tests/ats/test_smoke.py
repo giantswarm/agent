@@ -10,9 +10,9 @@ releases of the archive under test are installed into the Harness's namespace:
     resolves the Harness, is compiled and booted into a golden snapshot (the
     skill is materialised on the way), and the agent's RemoteMCPServer is
     accepted with no failed condition.
-  * `ats-defaults` with the chart's default values — the smallest release an
-    operator can install. Ready too, with its RemoteMCPServer (the default
-    toolset binds muster).
+  * `ats-defaults` with the chart's default values and the required
+    modelConfig.name: the smallest release an operator can install. Ready
+    too, with its RemoteMCPServer (the default toolset binds muster).
 
 Ready means compiled and bootable on the platform's runtime; no
 model is called (the provider key is a placeholder).
@@ -31,6 +31,7 @@ from conftest import (
     FIRST_BOOT_TIMEOUT_S,
     HARNESS,
     KAGENT_NAMESPACE,
+    MODEL_CONFIG,
     TOOLSET_HEADER,
     Kube,
     agent_generation,
@@ -67,7 +68,7 @@ def test_smoke_release_reaches_ready_with_a_git_skill(kube: Kube, release: Calla
     assert annotations["ui.giantswarm.io/display-name"] == "ATS Smoke Agent"
     assert annotations["ui.giantswarm.io/icon-url"] == "https://avatars.example.com/ats-smoke.svg"
     assert annotations["giantswarm.io/scenario"] == "smoke"
-    assert spec["modelConfig"] == {"name": "default-model-config"}
+    assert spec["modelConfig"] == {"name": MODEL_CONFIG}
     assert spec["description"] == "Exercises the chart's field mapping on the platform's runtime."
     assert spec["systemPrompt"] == "You are the chart's smoke test. Be brief."
     # context.compaction in the values renders nothing: compaction lives on the
@@ -104,7 +105,7 @@ def test_default_values_reach_ready_with_a_remotemcpserver(kube: Kube, release: 
     agent = kube.get(AGENTS, DEFAULTS_RELEASE, namespace=KAGENT_NAMESPACE)
     assert agent
     assert agent["spec"]["harnessRef"] == {"name": HARNESS}
-    assert agent["spec"]["template"]["modelConfig"] == {"name": "default-model-config"}
+    assert agent["spec"]["template"]["modelConfig"] == {"name": MODEL_CONFIG}
     assert "context" not in agent["spec"]["template"]
     assert agent["spec"]["template"]["tools"] == [{"mcp": {"server": {"kind": "RemoteMCPServer", "name": DEFAULTS_RELEASE}}}]
 

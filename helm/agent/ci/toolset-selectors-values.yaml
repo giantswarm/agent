@@ -2,3 +2,5 @@
 toolset:
   - preset:read-only
   - workflow:incident-triage
+modelConfig:
+  name: demo-model

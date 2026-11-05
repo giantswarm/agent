@@ -16,8 +16,8 @@
 #   smoke       test_smoke.py: a release with tests/ats/values-smoke.yaml (every
 #               field the chart maps, a public git skill pinned to a commit)
 #               reaches Ready and its RemoteMCPServer is accepted; a release
-#               with the chart's default values reaches Ready with its
-#               RemoteMCPServer.
+#               with the chart's default values and the required
+#               modelConfig.name reaches Ready with its RemoteMCPServer.
 #   functional  test_chat_only.py: toolset ["preset:none"] reaches Ready with no
 #               RemoteMCPServer. test_fail_fast.py: the readiness wait answers
 #               in seconds, with the reason, for an Agent whose Harness does
