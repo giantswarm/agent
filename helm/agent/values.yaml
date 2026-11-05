@@ -109,7 +109,7 @@ modelConfig:
   # -- Required. Name of the platform-provisioned ModelConfig in the agent's
   # namespace, rendered into the Agent's spec.template.modelConfig.name. The
   # chart has no default and looks nothing up: name the namespace's default
-  # model, the ModelConfig labelled
+  # model, the ModelConfig annotated
   # `agent-platform.giantswarm.io/is-default-model-config: "true"`, or another
   # ModelConfig in the namespace.
   name: ""
