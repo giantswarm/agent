@@ -105,7 +105,7 @@ agent:
 # kagent resolves it in the agent's own namespace. The chart never creates or
 # mutates a ModelConfig, and tenants never handle LLM credentials.
 modelConfig:
-  # @schema type:string;minLength:1;required:true
+  # @schema type:string;minLength:1;maxLength:253;pattern:^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$;required:true
   # -- Required. Name of the platform-provisioned ModelConfig in the agent's
   # namespace, rendered into the Agent's spec.template.modelConfig.name. The
   # chart has no default and looks nothing up: name the namespace's default

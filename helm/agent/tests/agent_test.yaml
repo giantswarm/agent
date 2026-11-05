@@ -294,7 +294,7 @@ tests:
         name: null
     asserts:
       - failedTemplate:
-          errorPattern: 'modelConfig'
+          errorPattern: "/modelConfig': missing property 'name'"
 
   - it: refuses an empty modelConfig.name
     set:
@@ -302,7 +302,15 @@ tests:
         name: ""
     asserts:
       - failedTemplate:
-          errorPattern: 'modelConfig[./]name'
+          errorPattern: "/modelConfig/name': minLength"
+
+  - it: refuses a modelConfig.name that is not a Kubernetes object name
+    set:
+      modelConfig:
+        name: Claude Sonnet
+    asserts:
+      - failedTemplate:
+          errorPattern: "/modelConfig/name': .*does not match pattern"
 
   - it: references the ModelConfig by name
     set:

@@ -389,8 +389,7 @@ the agent. Pin the chart version for reproducibility.
 
 Chart 3.0 drops the default of `modelConfig.name` (it was
 `default-model-config`, a ModelConfig installations no longer ship). The value
-is required: the schema refuses a release without it, and the render fails
-with a message naming the default-model annotation. Set it to the
+is required: the values schema refuses a release without it. Set it to the
 namespace's default model, the ModelConfig annotated
 `agent-platform.giantswarm.io/is-default-model-config: "true"`
 (`kubectl get modelconfigs -n <namespace> -o jsonpath='{.items[?(@.metadata.annotations.agent-platform\.giantswarm\.io/is-default-model-config=="true")].metadata.name}'`),

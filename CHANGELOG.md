@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** Chart 3.0: `modelConfig.name` is required and has no default (it was `default-model-config`, a ModelConfig installations no longer ship). The values schema refuses a release without a non-empty name, and the render fails with a message pointing at the namespace's default model, the ModelConfig annotated `agent-platform.giantswarm.io/is-default-model-config: "true"`. The chart looks nothing up: set `modelConfig.name` to that ModelConfig or another one in the agent's namespace before upgrading. A release that already sets it upgrades unchanged (giantswarm/agent#124).
+- **BREAKING** Chart 3.0: `modelConfig.name` is required and has no default (it was `default-model-config`). The values schema refuses a release without a name, or with one that is not a valid Kubernetes object name. The chart looks nothing up: set `modelConfig.name` before upgrading, to the namespace's default model (the ModelConfig annotated `agent-platform.giantswarm.io/is-default-model-config: "true"`) or another ModelConfig in the agent's namespace. A release that already sets it upgrades unchanged (giantswarm/agent#124).
 
 ### Removed
 

@@ -331,7 +331,7 @@ contract.
 description: {{ . | quote }}
 {{- end }}
 modelConfig:
-  name: {{ required "modelConfig.name is required: name a ModelConfig in the agent's namespace, usually the namespace's default model, the ModelConfig annotated agent-platform.giantswarm.io/is-default-model-config=true" .Values.modelConfig.name | quote }}
+  name: {{ .Values.modelConfig.name | quote }}
 systemPrompt: {{ include "agent.systemPrompt" . | toJson }}
 {{- with .Values.skills }}
 skills:

@@ -392,7 +392,9 @@
                 "name": {
                     "type": "string",
                     "description": "Required. Name of the platform-provisioned ModelConfig in the agent's namespace, rendered into the Agent's spec.template.modelConfig.name. The chart has no default and looks nothing up: name the namespace's default model, the ModelConfig annotated `agent-platform.giantswarm.io/is-default-model-config: \"true\"`, or another ModelConfig in the namespace.",
-                    "minLength": 1
+                    "maxLength": 253,
+                    "minLength": 1,
+                    "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
                 }
             }
         },
