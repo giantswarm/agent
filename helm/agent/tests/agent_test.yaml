@@ -15,7 +15,7 @@ release:
   name: demo
   namespace: demo-ns
 # modelConfig.name has no default; every test names a model unless it tests
-# the refusal.
+# the empty case.
 set:
   modelConfig.name: demo-model
 tests:
@@ -288,21 +288,21 @@ tests:
       - failedTemplate:
           errorPattern: 'agent[./]platformPrompt'
 
-  - it: refuses a release without modelConfig.name
-    set:
-      modelConfig:
-        name: null
-    asserts:
-      - failedTemplate:
-          errorPattern: "/modelConfig': missing property 'name'"
-
-  - it: refuses an empty modelConfig.name
+  - it: renders no modelConfig when modelConfig.name is empty
     set:
       modelConfig:
         name: ""
     asserts:
-      - failedTemplate:
-          errorPattern: "/modelConfig/name': minLength"
+      - notExists:
+          path: spec.template.modelConfig
+
+  - it: renders no modelConfig when modelConfig.name is unset
+    set:
+      modelConfig:
+        name: null
+    asserts:
+      - notExists:
+          path: spec.template.modelConfig
 
   - it: refuses a modelConfig.name that is not a Kubernetes object name
     set:

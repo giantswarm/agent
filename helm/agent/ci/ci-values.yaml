@@ -1,4 +1,4 @@
-# ct lint case: the default values plus the required modelConfig.name,
+# ct lint case: the default values plus a modelConfig.name,
 # toolset unset (implicit full access).
 # ct lints each ci/*-values.yaml in place of the bare defaults, so the
 # default shape needs its own case. The check-values-schema workflow merges

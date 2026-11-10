@@ -105,13 +105,13 @@ agent:
 # kagent resolves it in the agent's own namespace. The chart never creates or
 # mutates a ModelConfig, and tenants never handle LLM credentials.
 modelConfig:
-  # @schema type:string;minLength:1;maxLength:253;pattern:^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$;required:true
-  # -- Required. Name of the platform-provisioned ModelConfig in the agent's
-  # namespace, rendered into the Agent's spec.template.modelConfig.name. The
-  # chart has no default and looks nothing up: name the namespace's default
-  # model, the ModelConfig annotated
+  # @schema type:string;maxLength:253;pattern:^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+  # -- Name of the platform-provisioned ModelConfig in the agent's namespace,
+  # rendered into the Agent's spec.template.modelConfig.name. The chart looks
+  # nothing up: name the namespace's default model, the ModelConfig annotated
   # `agent-platform.giantswarm.io/is-default-model-config: "true"`, or another
-  # ModelConfig in the namespace.
+  # ModelConfig in the namespace. Empty (the default) renders no
+  # spec.template.modelConfig: the Agent is not Ready until something sets one.
   name: ""
 
 # -- Kept for the values of existing releases; rendered into nothing. Context
