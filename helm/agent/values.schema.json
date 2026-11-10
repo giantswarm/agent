@@ -388,8 +388,7 @@
             "properties": {
                 "name": {
                     "type": "string",
-                    "description": "Name of the platform-provisioned ModelConfig in the agent's namespace. Rendered into the Agent's spec.template.modelConfig.name.",
-                    "minLength": 1
+                    "description": "Name of the platform-provisioned ModelConfig in the agent's namespace. Rendered into the Agent's spec.template.modelConfig.name. Empty renders no spec.template.modelConfig: the Agent is not Ready until something sets one."
                 }
             }
         },

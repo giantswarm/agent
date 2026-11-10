@@ -105,9 +105,10 @@ agent:
 # kagent resolves it in the agent's own namespace. The chart never creates or
 # mutates a ModelConfig, and tenants never handle LLM credentials.
 modelConfig:
-  # @schema type:string;minLength:1
+  # @schema type:string
   # -- Name of the platform-provisioned ModelConfig in the agent's namespace.
-  # Rendered into the Agent's spec.template.modelConfig.name.
+  # Rendered into the Agent's spec.template.modelConfig.name. Empty renders no
+  # spec.template.modelConfig: the Agent is not Ready until something sets one.
   name: default-model-config
 
 # -- Kept for the values of existing releases; rendered into nothing. Context
