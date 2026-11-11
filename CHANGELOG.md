@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `modelConfig.name` may be empty: an empty name renders no `spec.template.modelConfig`, and the Agent is not Ready until something sets one. The default stays `default-model-config` (backport of giantswarm/agent#129, giantswarm/giantswarm#38970).
+
 - `annotations` refuses `ui.giantswarm.io/display-name`, `ui.giantswarm.io/icon-url` and `ui.giantswarm.io/tags`; set `agent.displayName`, `agent.iconUrl` and `agent.tags` instead (giantswarm/giantswarm#38901).
 
 - `muster.timeout` defaults to `60m` (was `180s`), muster's progress cap (an MCPServer's `progress.maxDuration`, at most an hour). kagent applies the RemoteMCPServer's `spec.timeout` to the whole request, and no MCP progress notification restarts it, so a wait that muster keeps alive by progress, devctl's `pr_wait`, `pr_merge` and `release_wait`, was cut after 180 s by the agent's own runtime while muster would have carried it to its verdict. muster still bounds every call by its backend's own `spec.timeout`, restarted by that backend's progress, so a backend without progress ends at its own budget as before.

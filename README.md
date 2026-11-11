@@ -44,6 +44,8 @@ It never touches:
 - **`ModelConfig`** CRs and the `Secret`s they reference (LLM credentials) —
   platform-owned, provisioned per tenant namespace. The chart wires the agent
   to one **by name** (`modelConfig.name`, default `default-model-config`).
+  Empty renders no `spec.template.modelConfig`, and the Agent is not Ready
+  until something sets one.
 
 ## Usage
 

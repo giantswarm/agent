@@ -330,8 +330,10 @@ contract.
 {{- with .Values.agent.description }}
 description: {{ . | quote }}
 {{- end }}
+{{- with .Values.modelConfig.name }}
 modelConfig:
-  name: {{ .Values.modelConfig.name | quote }}
+  name: {{ . | quote }}
+{{- end }}
 systemPrompt: {{ include "agent.systemPrompt" . | toJson }}
 {{- with .Values.skills }}
 skills:

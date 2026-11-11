@@ -293,6 +293,14 @@ tests:
           path: spec.template.modelConfig.name
           value: claude-sonnet
 
+  - it: renders no modelConfig when modelConfig.name is empty
+    set:
+      modelConfig:
+        name: ""
+    asserts:
+      - notExists:
+          path: spec.template.modelConfig
+
   # the Harness: referenced by name, never selected by label
   - it: references the Harness named by agent.harness
     set:
