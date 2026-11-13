@@ -97,15 +97,15 @@ DISCOVERY_LABEL = "kagent.dev/discovery"
 
 # The kagent line (giantswarm/kagent-upstream), a release tag `vX.Y.Z` without
 # the `v`: the kagent chart and the controller image carry this version.
-KAGENT_LINE = "1.28.0"
+KAGENT_LINE = "1.31.1"
 KAGENT_CHARTS = "oci://gsoci.azurecr.io/giantswarm/kagent/helm"
 # The Go ADK runtime image of that release, by digest — the image index digest
 # `crane digest gsoci.azurecr.io/giantswarm/kagent/golang-adk:<KAGENT_LINE>`
 # reports. Renovate moves it with KAGENT_LINE (renovate-custom.json5).
-HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:f3fa69804a9517027018c80fc9ed3bcce75af4ce62095853621869009ecc60b3"
+HARNESS_IMAGE = "gsoci.azurecr.io/giantswarm/kagent/golang-adk@sha256:60a09dba19b52bb00ce109a46b51c8ef675a15d2bf14f4330756d38a25ed931a"
 # The Substrate line (giantswarm/substrate), a release tag without the `v`: the
 # substrate chart, its control-plane images and the gVisor worker image.
-SUBSTRATE_LINE = "1.17.5"
+SUBSTRATE_LINE = "1.18.0"
 SUBSTRATE_CHARTS = "oci://gsoci.azurecr.io/giantswarm/substrate/helm"
 WORKER_IMAGE = f"gsoci.azurecr.io/giantswarm/substrate/ateom-gvisor:{SUBSTRATE_LINE}"
 
