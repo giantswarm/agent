@@ -1205,46 +1205,6 @@ tests:
       - failedTemplate:
           errorPattern: 'toolset is empty.*preset:none'
 
-  - it: fails above 32 selectors and says to define a preset
-    set:
-      toolset:
-        - tool:t01
-        - tool:t02
-        - tool:t03
-        - tool:t04
-        - tool:t05
-        - tool:t06
-        - tool:t07
-        - tool:t08
-        - tool:t09
-        - tool:t10
-        - tool:t11
-        - tool:t12
-        - tool:t13
-        - tool:t14
-        - tool:t15
-        - tool:t16
-        - tool:t17
-        - tool:t18
-        - tool:t19
-        - tool:t20
-        - tool:t21
-        - tool:t22
-        - tool:t23
-        - tool:t24
-        - tool:t25
-        - tool:t26
-        - tool:t27
-        - tool:t28
-        - tool:t29
-        - tool:t30
-        - tool:t31
-        - tool:t32
-        - tool:t33
-    asserts:
-      - failedTemplate:
-          errorPattern: 'toolset has 33 selectors.*define a preset'
-
   - it: "refuses toolset:<name> as reserved"
     set:
       toolset:

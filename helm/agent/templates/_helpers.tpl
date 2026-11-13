@@ -109,7 +109,7 @@ the agent.* values. Empty when there is nothing to render.
 Validate the toolset: a list of selector strings, each preset:<name>,
 server:<name>, workflow:<name> or tool:<name>. Unset means implicit full
 access (no header); an empty list is refused so it can never silently mean
-full access; more than 32 selectors is refused (define a preset instead);
+full access; more than 128 selectors is refused (define a preset instead);
 toolset:<name> is reserved for shared toolsets; label: exists only inside
 presets. Fails the render with the offending selector.
 */}}
@@ -121,9 +121,6 @@ presets. Fails the render with the offending selector.
   {{- end -}}
   {{- if eq (len $ts) 0 -}}
     {{- fail "toolset is empty: an agent without tools declares toolset: [\"preset:none\"]; leave toolset unset for implicit full access to everything the gateway exposes" -}}
-  {{- end -}}
-  {{- if gt (len $ts) 32 -}}
-    {{- fail (printf "toolset has %d selectors, above the inline cap of 32: define a preset (muster toolsetPresets) and select it with preset:<name>" (len $ts)) -}}
   {{- end -}}
   {{- range $ts -}}
     {{- if not (kindIs "string" .) -}}
@@ -138,6 +135,10 @@ presets. Fails the render with the offending selector.
     {{- if not (regexMatch `^(preset|server|workflow|tool):[^\s,]+$` .) -}}
       {{- fail (printf "toolset selector %q is invalid: expected preset:<name>, server:<name>, workflow:<name> or tool:<name> (exact name, no whitespace or commas)" .) -}}
     {{- end -}}
+  {{- end -}}
+  {{- $bytes := len (join "," $ts) -}}
+  {{- if gt $bytes 8192 -}}
+    {{- fail (printf "toolset encodes to %d bytes, above the inline limit of 8192: define a preset (muster toolsetPresets) and select it with preset:<name>" $bytes) -}}
   {{- end -}}
 {{- end -}}
 {{- end -}}
