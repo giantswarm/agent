@@ -26,7 +26,22 @@ helm-test: helm-lint helm-toolset-schema-test
 
 .PHONY: helm-toolset-schema-test
 helm-toolset-schema-test:
-	bash helm/agent/tests/toolset-schema.sh
+	@set -eu; \
+	scratch_root="$${TMPDIR:-$${HOME}/.cache/tmp}"; \
+	mkdir -p "$$scratch_root"; \
+	scratch=$$(mktemp -d "$$scratch_root/toolset-schema.XXXXXX"); \
+	trap 'rm -rf "$$scratch"' EXIT; \
+	for count in 128 129; do \
+		awk -v count="$$count" 'BEGIN { print "toolset:"; for (entry = 0; entry < count; entry++) printf "  - tool:example_%d\n", entry }' > "$$scratch/values.yaml"; \
+		if helm template example helm/agent --kubeconfig /dev/null \
+			--values helm/agent/ci/ci-values.yaml --values "$$scratch/values.yaml" \
+			> "$$scratch/rendered.yaml" 2> "$$scratch/error"; then \
+			test "$$count" -eq 128; \
+		else \
+			test "$$count" -eq 129; \
+			grep -Eq 'maxItems: got 129, want 128|at most 128 items' "$$scratch/error"; \
+		fi; \
+	done
 
 .PHONY: helm-unittest-update
 helm-unittest-update: install-helm-unittest ## Re-record the golden snapshot in helm/agent/tests/__snapshot__/ (only on purpose; say so in the PR).
