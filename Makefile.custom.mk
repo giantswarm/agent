@@ -34,12 +34,12 @@ helm-toolset-schema-test:
 	for count in 128 129; do \
 		awk -v count="$$count" 'BEGIN { print "toolset:"; for (entry = 0; entry < count; entry++) printf "  - tool:example_%d\n", entry }' > "$$scratch/values.yaml"; \
 		if helm template example helm/agent --kubeconfig /dev/null \
-			--values helm/agent/ci/ci-values.yaml --values "$$scratch/values.yaml" \
+			--set-string modelConfig.name=schema-test --values "$$scratch/values.yaml" \
 			> "$$scratch/rendered.yaml" 2> "$$scratch/error"; then \
 			test "$$count" -eq 128; \
 		else \
-			test "$$count" -eq 129; \
-			grep -Eq 'maxItems: got 129, want 128|at most 128 items' "$$scratch/error"; \
+			test "$$count" -eq 129 || { cat "$$scratch/error" >&2; exit 1; }; \
+			grep -Eq 'maxItems: got 129, want 128|at most 128 items' "$$scratch/error" || { cat "$$scratch/error" >&2; exit 1; }; \
 		fi; \
 	done
 
