@@ -22,7 +22,11 @@ helm-template: ## Render the chart with the CI values.
 # Prerequisite-only, no recipe: make merges it into the generated helm-test
 # rule, which keeps its recipe (the helm-unittest run) and gains the lint.
 .PHONY: helm-test
-helm-test: helm-lint
+helm-test: helm-lint helm-toolset-schema-test
+
+.PHONY: helm-toolset-schema-test
+helm-toolset-schema-test:
+	bash helm/agent/tests/toolset-schema.sh
 
 .PHONY: helm-unittest-update
 helm-unittest-update: install-helm-unittest ## Re-record the golden snapshot in helm/agent/tests/__snapshot__/ (only on purpose; say so in the PR).
