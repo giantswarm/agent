@@ -297,7 +297,7 @@ muster:
     # time as the signed-in person. Turn on only for a muster without OAuth.
     enabled: false
 
-# @schema type:[array, null];item:string
+# @schema type:[array, null];item:string;maxItems:128
 # -- (list) The tools the agent is composed with: a list of selectors that muster
 # resolves per request. Selectors are `preset:<name>`, `server:<name>`,
 # `workflow:<name>` or `tool:<name>` with exact, case-sensitive names (regex

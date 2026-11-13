@@ -122,9 +122,6 @@ presets. Fails the render with the offending selector.
   {{- if eq (len $ts) 0 -}}
     {{- fail "toolset is empty: an agent without tools declares toolset: [\"preset:none\"]; leave toolset unset for implicit full access to everything the gateway exposes" -}}
   {{- end -}}
-  {{- if gt (len $ts) 128 -}}
-    {{- fail (printf "toolset has %d selectors, above the inline cap of 128: define a preset (muster toolsetPresets) and select it with preset:<name>" (len $ts)) -}}
-  {{- end -}}
   {{- range $ts -}}
     {{- if not (kindIs "string" .) -}}
       {{- fail (printf "toolset selector %v must be a string" .) -}}
