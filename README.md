@@ -79,7 +79,7 @@ labels:
 The technical resource name defaults to the Helm release name. By default the
 agent is wired to the platform's muster gateway with **all** of its (dynamic)
 tools — implicit full access to everything the gateway exposes to the invoking
-human. Declare a **toolset** to compose the agent with a subset:
+human. Declare a **toolset** (deprecated, use `tools` below) to compose the agent with a subset:
 
 ```yaml
 toolset:
@@ -98,6 +98,37 @@ render (say `preset:none`), more than 32 inline selectors fail (define a
 preset), and `toolset:<name>` is reserved. Composition, not authorization: the
 human's identity and the backends' own authorization remain the boundary. The
 agent gets no wider access of its own.
+
+### Tools with approval settings
+
+`tools` replaces `toolset` (deprecated: use `tools`). An item is a selector, or
+a one-key object that gives the selector a setting (`Allow`, `Ask` or `Block`,
+case-sensitive); `default` is the setting for every listed tool without its own:
+
+```yaml
+tools:                                       # 1 to 32 items; unlisted tools are invisible
+  - server:pagerduty                         # visible; the connector's settings apply
+  - server:github: Ask                       # every GitHub tool asks, new ones too
+  - tool:x_github_merge_pull_request: Allow  # holds over the connector's Ask only with a grant
+  - tool:x_github_delete_repository: Block   # hidden from the agent
+default: Ask                                 # optional
+```
+
+- The selectors alone, settings stripped, render exactly as `toolset` renders
+  them: the `X-Muster-Toolset` header, and `["preset:none"]` renders no
+  `RemoteMCPServer` and no muster binding. Settings and `default` render
+  nothing; agent-manager reads them from the release values and binds them per
+  Session.
+- Setting `tools` and `toolset` together fails the render, as does a selector
+  listed twice, `preset:none` next to other entries or with a setting (or
+  `default`), and a value other than `Allow`, `Ask` or `Block`.
+- `muster.requireApproval` is deprecated: `true` alone keeps rendering kagent's
+  `requireApproval: true` and prints a deprecation line in `NOTES.txt`; with any
+  setting (an object item or `default`) the render fails. Chart 3.0 migrates
+  `requireApproval: true` to `default: Ask`.
+- An `Allow` over a connector's `Ask` holds only when a connector admin grants
+  it through agent-manager's `set_agent_approval`; without a grant the connector's
+  `Ask` stays in force.
 
 `muster.tools` narrows the binding to a subset of muster's *meta-tools*
 (`list_tools`, `call_tool`, ...), not the tools behind the gateway — a toolset
