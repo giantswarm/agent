@@ -1,0 +1,11 @@
+# ct lint case: tools with Allow/Ask/Block settings and a default. The
+# selectors render as the X-Muster-Toolset header; settings and default render
+# nothing.
+tools:
+  - server:pagerduty
+  - server:github: Ask
+  - tool:x_github_merge_pull_request: Allow
+  - tool:x_github_delete_repository: Block
+default: Ask
+modelConfig:
+  name: demo-model

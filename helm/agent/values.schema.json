@@ -149,11 +149,50 @@
             "$comment": "One entry of the `agent.tags` value: a lowercase kebab-case keyword. Referenced from values.yaml (`tags: [] # @schema itemRef:tag.schema.json`) and bundled into values.schema.json by the helm-schema pre-commit hook.",
             "maxLength": 63,
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "tool.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$comment": "One entry of the `tools` value: a selector string, or an object with exactly one key (a selector) whose value is the tool's approval setting. Referenced from values.yaml (`tools: # @schema itemRef:tool.schema.json`) and bundled into values.schema.json by the helm-schema pre-commit hook.",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "pattern": "^(preset|server|workflow|tool):[^\\s,]+$"
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "enum": [
+                            "Allow",
+                            "Ask",
+                            "Block"
+                        ]
+                    },
+                    "maxProperties": 1,
+                    "minProperties": 1,
+                    "propertyNames": {
+                        "pattern": "^(preset|server|workflow|tool):[^\\s,]+$"
+                    }
+                }
+            ]
         }
     },
     "type": "object",
     "additionalProperties": false,
     "properties": {
+        "default": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "The setting for every tool in `tools` without its own: `Allow`, `Ask` or `Block` (case-sensitive). Optional; absent means no default. Renders nothing (read by agent-manager). `default: Ask` is what `muster.requireApproval: true` becomes in chart 3.0.",
+            "enum": [
+                "Allow",
+                "Ask",
+                "Block",
+                null
+            ]
+        },
         "agent": {
             "type": "object",
             "description": "Identity and prompt of the agent.",
@@ -416,7 +455,7 @@
                 },
                 "requireApproval": {
                     "type": "boolean",
-                    "description": "Pause the agent before every tool call through muster until a person approves it. Rendered as `requireApproval: true` on the binding (kagent's human-in-the-loop): the Harness stops the task at `input-required` for each call and continues with the person's decision. It applies to the tools the binding exposes — `tools` when set, otherwise every muster tool. A client that negotiates kagent's HITL A2A extension (`https://kagent.dev/extensions/hitl/v1`) receives the structured `tool_approval_request` and answers it; one that does not sees a plain notice that human input is required. Off by default: the agent calls tools without asking."
+                    "description": "Deprecated: set `default: Ask` instead (chart 3.0 migrates it); fails together with any `tools` setting or `default`. Pause the agent before every tool call through muster until a person approves it. Rendered as `requireApproval: true` on the binding (kagent's human-in-the-loop): the Harness stops the task at `input-required` for each call and continues with the person's decision. It applies to the tools the binding exposes — `tools` when set, otherwise every muster tool. A client that negotiates kagent's HITL A2A extension (`https://kagent.dev/extensions/hitl/v1`) receives the structured `tool_approval_request` and answers it; one that does not sees a plain notice that human input is required. Off by default: the agent calls tools without asking."
                 },
                 "timeout": {
                     "type": "string",
@@ -475,12 +514,24 @@
         "subscriptionID": {
             "type": "string"
         },
+        "tools": {
+            "type": [
+                "array",
+                "null"
+            ],
+            "description": "The tools the agent is composed with, 1 to 32 items; replaces `toolset`. An item is a selector string or an object with one key (a selector) whose value is `Allow`, `Ask` or `Block`, e.g. `- server:github: Ask`. Selectors are `preset:<name>`, `server:<name>`, `workflow:<name>` or `tool:<name>` with exact, case-sensitive names (regex `^(preset|server|workflow|tool):[^\\s,]+$`); a selector appears once. An unlisted tool is invisible to the agent. The selectors alone render as the `toolset` header (`X-Muster-Toolset` on the RemoteMCPServer; exactly `[\"preset:none\"]` renders no RemoteMCPServer and no muster binding, and takes no setting and no other entry); settings and `default` render nothing: agent-manager reads them from the release values and binds them per Session. `Allow` over a connector's `Ask` holds only when a connector admin grants it through agent-manager's `set_agent_approval`. Setting `tools` and `toolset` together fails the render, as does `muster.requireApproval: true` together with any setting.",
+            "items": {
+                "$ref": "#/$defs/tool.schema.json"
+            },
+            "maxItems": 32,
+            "minItems": 1
+        },
         "toolset": {
             "type": [
                 "array",
                 "null"
             ],
-            "description": "The tools the agent is composed with: a list of selectors that muster resolves per request. Selectors are `preset:<name>`, `server:<name>`, `workflow:<name>` or `tool:<name>` with exact, case-sensitive names (regex `^(preset|server|workflow|tool):[^\\s,]+$`); at most 128 inline and 8192 UTF-8 bytes joined by commas, define a preset for more. `toolset:<name>` is reserved and refused; patterns, excludes, the read-only predicate and `label:` exist only inside presets. Rendered as the static `X-Muster-Toolset` header on the agent's RemoteMCPServer (`spec.headersFrom`, the selectors joined by `,`). Exactly `[\"preset:none\"]` renders NO RemoteMCPServer and no muster binding at all, so a chat-only agent pays no context for meta-tools; an empty list fails the render (say `preset:none` instead). Unset (the default) renders no header and the agent keeps implicit full access to everything the gateway exposes to the invoking human. Built-in presets: `read-only`, `none`, `full`; the platform charts ship `infrastructure` and `agent-platform`. Composition, not authorization: the human's identity and the backends' own authorization stay the boundary.",
+            "description": "Deprecated: use `tools`. The tools the agent is composed with: a list of selectors that muster resolves per request. Selectors are `preset:<name>`, `server:<name>`, `workflow:<name>` or `tool:<name>` with exact, case-sensitive names (regex `^(preset|server|workflow|tool):[^\\s,]+$`); at most 128 inline and 8192 UTF-8 bytes joined by commas, define a preset for more. `toolset:<name>` is reserved and refused; patterns, excludes, the read-only predicate and `label:` exist only inside presets. Rendered as the static `X-Muster-Toolset` header on the agent's RemoteMCPServer (`spec.headersFrom`, the selectors joined by `,`). Exactly `[\"preset:none\"]` renders NO RemoteMCPServer and no muster binding at all, so a chat-only agent pays no context for meta-tools; an empty list fails the render (say `preset:none` instead). Unset (the default) renders no header and the agent keeps implicit full access to everything the gateway exposes to the invoking human. Built-in presets: `read-only`, `none`, `full`; the platform charts ship `infrastructure` and `agent-platform`. Composition, not authorization: the human's identity and the backends' own authorization stay the boundary.",
             "items": {
                 "type": "string"
             },
