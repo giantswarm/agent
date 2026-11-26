@@ -112,6 +112,7 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: tools and toolset are both set
+        template: templates/remotemcpserver.yaml
 
   - it: fails on a duplicated selector in tools
     set:
@@ -121,6 +122,7 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: 'tools selector "server:github" is listed more than once'
+        template: templates/remotemcpserver.yaml
 
   - it: fails on preset:none with a setting
     set:
@@ -129,6 +131,7 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: 'tools: preset:none cannot carry a setting'
+        template: templates/remotemcpserver.yaml
 
   - it: fails on preset:none with default
     set:
@@ -138,6 +141,7 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: 'tools: preset:none cannot carry a setting'
+        template: templates/remotemcpserver.yaml
 
   - it: fails on preset:none with other entries
     set:
@@ -147,6 +151,7 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: 'tools: preset:none cannot be combined with other entries'
+        template: templates/remotemcpserver.yaml
 
   # chart 3.0: muster.requireApproval is gone; `default: Ask` replaces it
   - it: refuses muster.requireApproval through the values schema (removed in 3.0)
