@@ -435,13 +435,15 @@ or to any other ModelConfig in the namespace. A release that already sets
 `modelConfig.name` upgrades unchanged.
 
 Chart 3.0 also removes `muster.requireApproval`, deprecated since `tools` and
-`default` came: the values schema refuses the key, so a 2.x release that
-still carries it fails its 3.0 render and stays on its 2.x revision, asking as
-before, until its values change. `default: Ask` replaces `muster.requireApproval: true`:
+`default` came: the values schema and the templates refuse the key (also
+with schema validation skipped), so a 2.x release that still carries it fails
+its 3.0 render and stays on its 2.x revision, asking as before, until its
+values change: replace it with `default: Ask`, never just delete it. `default: Ask` replaces `muster.requireApproval: true`:
 muster, not kagent, asks a person before every tool call through it, also from
 clients other than kagent's, and nothing asks twice. `false` is dropped. A
 release that also sets `tools` entries with a setting or `default` never
-rendered (2.x refused the combination); choose its settings by hand.
+rendered (no released chart ever rendered that combination); choose its
+settings by hand.
 
 agent-manager's `migrate` (the Agent Platform runs it on the upgrade that moves
 the agent chart line to 3.x) does both rewrites before it moves a namespace's
@@ -450,7 +452,11 @@ the muster binding renders: not with `muster.enabled: false` or a tool list of
 exactly `["preset:none"]`), the key is dropped, and an unset `modelConfig.name`
 is written as `default-model-config`, what 2.x rendered. A GitOps-owned release
 gets the same change as a diff in the report for the owning repository; apply
-it together with the move of the source's range to 3.x.
+it together with the move of the source's range to 3.x. A release with
+`spec.valuesFrom`, one whose chart source migrate cannot move, and every
+release in an organization namespace are reported with the change, never
+written: no released 2.x chart takes `default`, so values and source move
+together.
 
 ```diff
  muster:
