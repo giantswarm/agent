@@ -200,6 +200,31 @@ with any setting. Fails the render with the offending value.
 {{- end -}}
 
 {{/*
+The agent's approval settings as the X-Muster-Tool-Approval header value:
+"<selector>=<Setting>" per tools entry with a setting, then "default=<Setting>",
+joined by commas; empty without settings. muster applies it to requests that
+no Session binding with agent-manager's settings covers (Sessions not started
+through agent-manager): it carries no grants, so it can only make tools
+stricter than their connectors' settings.
+*/}}
+{{- define "agent.tools.approvalHeader" -}}
+{{- $parts := list -}}
+{{- if not (kindIs "invalid" .Values.tools) -}}
+  {{- range .Values.tools -}}
+    {{- if kindIs "map" . -}}
+      {{- range $k, $v := . -}}
+        {{- $parts = append $parts (printf "%s=%s" $k $v) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if not (kindIs "invalid" .Values.default) -}}
+  {{- $parts = append $parts (printf "default=%s" .Values.default) -}}
+{{- end -}}
+{{- join "," $parts -}}
+{{- end -}}
+
+{{/*
 Validate the tool list (see agent.tools.resolve); prints nothing.
 */}}
 {{- define "agent.toolset.validate" -}}

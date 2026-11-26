@@ -116,9 +116,11 @@ default: Ask                                 # optional
 
 - The selectors alone, settings stripped, render exactly as `toolset` renders
   them: the `X-Muster-Toolset` header, and `["preset:none"]` renders no
-  `RemoteMCPServer` and no muster binding. Settings and `default` render
-  nothing; agent-manager reads them from the release values and binds them per
-  Session.
+  `RemoteMCPServer` and no muster binding. Settings and `default` render as a
+  second header, `X-Muster-Tool-Approval: <selector>=<Setting>,...,default=<Setting>`,
+  which muster applies to requests no Session binding covers (it carries no
+  grants, so it only tightens); agent-manager reads them from the release values
+  and binds them, with grants, to every Session it starts.
 - Setting `tools` and `toolset` together fails the render, as does a selector
   listed twice, `preset:none` next to other entries or with a setting (or
   `default`), and a value other than `Allow`, `Ask` or `Block`.

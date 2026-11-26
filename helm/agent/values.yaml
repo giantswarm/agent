@@ -311,8 +311,10 @@ muster:
 # unlisted tool is invisible to the agent. The selectors alone render as the
 # `toolset` header (`X-Muster-Toolset` on the RemoteMCPServer; exactly
 # `["preset:none"]` renders no RemoteMCPServer and no muster binding, and
-# takes no setting and no other entry); settings and `default` render nothing:
-# agent-manager reads them from the release values and binds them per Session.
+# takes no setting and no other entry). Settings and `default` render as
+# `X-Muster-Tool-Approval` beside it (`<selector>=<Setting>,...,default=<Setting>`),
+# which muster applies where no Session binding carries them; agent-manager
+# also reads them from the release values and binds them per Session.
 # `Allow` over a connector's `Ask` holds only when a connector admin grants it
 # through agent-manager's `set_agent_approval`. Setting `tools` and `toolset`
 # together fails the render, as does `muster.requireApproval: true` together
@@ -323,7 +325,8 @@ tools:
 # @schema type:[string, null];enum:[Allow, Ask, Block, null]
 # -- (string) The setting for every tool in `tools` without its own: `Allow`,
 # `Ask` or `Block` (case-sensitive). Optional; absent means no default.
-# Renders nothing (read by agent-manager). `default: Ask` is what
+# Renders into `X-Muster-Tool-Approval` (and is bound by agent-manager).
+# `default: Ask` is what
 # `muster.requireApproval: true` becomes in chart 3.0.
 # @default -- unset: no default
 default:

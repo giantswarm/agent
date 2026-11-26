@@ -1,6 +1,6 @@
 # Render tests for `tools` and `default` (tool approval settings): the
-# selectors render exactly as `toolset` does, settings and `default` render
-# nothing, and the combinations the chart refuses fail with a message that
+# selectors render exactly as `toolset` does, settings and `default` render as
+# X-Muster-Tool-Approval, and the combinations the chart refuses fail with a message that
 # names the value.
 #
 # Run with: make helm-test (helm unittest helm/agent).
@@ -54,6 +54,8 @@ tests:
           value:
             - name: X-Muster-Toolset
               value: server:pagerduty,server:github,tool:x_github_merge_pull_request,tool:x_github_delete_repository
+            - name: X-Muster-Tool-Approval
+              value: server:github=Ask,tool:x_github_merge_pull_request=Allow,tool:x_github_delete_repository=Block
         template: templates/remotemcpserver.yaml
       - equal:
           path: spec.description
@@ -67,15 +69,19 @@ tests:
           path: spec.template.tools[0].mcp.requireApproval
         template: templates/agent.yaml
 
-  - it: renders default nothing
+  - it: renders default into X-Muster-Tool-Approval
     set:
       tools:
         - server:github
       default: Ask
     asserts:
       - equal:
-          path: spec.headersFrom[0].value
-          value: server:github
+          path: spec.headersFrom
+          value:
+            - name: X-Muster-Toolset
+              value: server:github
+            - name: X-Muster-Tool-Approval
+              value: default=Ask
         template: templates/remotemcpserver.yaml
       - notExists:
           path: spec.template.tools[0].mcp.requireApproval
