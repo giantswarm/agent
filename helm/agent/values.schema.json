@@ -185,7 +185,7 @@
                 "string",
                 "null"
             ],
-            "description": "The setting for every tool in `tools` without its own: `Allow`, `Ask` or `Block` (case-sensitive). Optional; absent means no default. Renders into `X-Muster-Tool-Approval` (and is bound by agent-manager). `default: Ask` is what `muster.requireApproval: true` becomes in chart 3.0.",
+            "description": "The setting for every tool in `tools` without its own: `Allow`, `Ask` or `Block` (case-sensitive). Optional; absent means no default. Renders into `X-Muster-Tool-Approval` (and is bound by agent-manager). `default: Ask` is what `muster.requireApproval: true` (removed in chart 3.0) becomes: agent-manager's `migrate` rewrites it.",
             "enum": [
                 "Allow",
                 "Ask",
@@ -453,10 +453,6 @@
                     "type": "boolean",
                     "description": "Wire muster into the agent's tools: render the agent's RemoteMCPServer and bind it in the Agent's template."
                 },
-                "requireApproval": {
-                    "type": "boolean",
-                    "description": "Deprecated: set `default: Ask` instead (chart 3.0 migrates it); fails together with any `tools` setting or `default`. Pause the agent before every tool call through muster until a person approves it. Rendered as `requireApproval: true` on the binding (kagent's human-in-the-loop): the Harness stops the task at `input-required` for each call and continues with the person's decision. It applies to the tools the binding exposes — `tools` when set, otherwise every muster tool. A client that negotiates kagent's HITL A2A extension (`https://kagent.dev/extensions/hitl/v1`) receives the structured `tool_approval_request` and answers it; one that does not sees a plain notice that human input is required. Off by default: the agent calls tools without asking."
-                },
                 "timeout": {
                     "type": "string",
                     "description": "How long one tool call through muster may run before the agent's runtime cancels it, rendered as given into the RemoteMCPServer's spec.timeout (a duration with a unit: `180s`, `5m`). Without the field kagent applies its own 30 s, which cuts a backend tool that legitimately runs longer — a write that creates a repository and opens a pull request in one call, a watch that blocks for minutes — although muster's own per-server budget for that backend allows more. The default is muster's progress cap (an MCPServer's `progress.maxDuration`, at most an hour): kagent applies the value to the whole request, which no MCP progress notification restarts, so a wait kept alive by progress (devctl's `pr_wait`, `pr_merge`, `release_wait`) returns its verdict in one call; muster still bounds every call by its backend's own `spec.timeout`, restarted by that progress, so a call is bounded by its backend, not by the caller.",
@@ -519,7 +515,7 @@
                 "array",
                 "null"
             ],
-            "description": "The tools the agent is composed with, 1 to 32 items; replaces `toolset`. An item is a selector string or an object with one key (a selector) whose value is `Allow`, `Ask` or `Block`, e.g. `- server:github: Ask`. Selectors are `preset:<name>`, `server:<name>`, `workflow:<name>` or `tool:<name>` with exact, case-sensitive names (regex `^(preset|server|workflow|tool):[^\\s,]+$`); a selector appears once. An unlisted tool is invisible to the agent. The selectors alone render as the `toolset` header (`X-Muster-Toolset` on the RemoteMCPServer; exactly `[\"preset:none\"]` renders no RemoteMCPServer and no muster binding, and takes no setting and no other entry). Settings and `default` render as `X-Muster-Tool-Approval` beside it (`<selector>=<Setting>,...,default=<Setting>`), which muster applies where no Session binding carries them; agent-manager also reads them from the release values and binds them per Session. `Allow` over a connector's `Ask` holds only when a connector admin grants it through agent-manager's `set_agent_approval`. Setting `tools` and `toolset` together fails the render, as does `muster.requireApproval: true` together with any setting.",
+            "description": "The tools the agent is composed with, 1 to 32 items; replaces `toolset`. An item is a selector string or an object with one key (a selector) whose value is `Allow`, `Ask` or `Block`, e.g. `- server:github: Ask`. Selectors are `preset:<name>`, `server:<name>`, `workflow:<name>` or `tool:<name>` with exact, case-sensitive names (regex `^(preset|server|workflow|tool):[^\\s,]+$`); a selector appears once. An unlisted tool is invisible to the agent. The selectors alone render as the `toolset` header (`X-Muster-Toolset` on the RemoteMCPServer; exactly `[\"preset:none\"]` renders no RemoteMCPServer and no muster binding, and takes no setting and no other entry). Settings and `default` render as `X-Muster-Tool-Approval` beside it (`<selector>=<Setting>,...,default=<Setting>`), which muster applies where no Session binding carries them; agent-manager also reads them from the release values and binds them per Session. `Allow` over a connector's `Ask` holds only when a connector admin grants it through agent-manager's `set_agent_approval`. Setting `tools` and `toolset` together fails the render.",
             "items": {
                 "$ref": "#/$defs/tool.schema.json"
             },

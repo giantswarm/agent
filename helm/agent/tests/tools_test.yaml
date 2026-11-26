@@ -8,7 +8,6 @@ suite: tools
 templates:
   - templates/remotemcpserver.yaml
   - templates/agent.yaml
-  - templates/NOTES.txt
 release:
   name: demo
   namespace: demo-ns
@@ -149,50 +148,42 @@ tests:
       - failedTemplate:
           errorPattern: 'tools: preset:none cannot be combined with other entries'
 
-  - it: fails on requireApproval with a setting on an entry
-    set:
-      muster:
-        requireApproval: true
-      tools:
-        - server:github: Ask
-    asserts:
-      - failedTemplate:
-          errorPattern: 'muster.requireApproval is deprecated and cannot be combined with tool approval settings \(tools entries with Allow/Ask/Block, default\): remove muster.requireApproval and set default: Ask'
-
-  - it: fails on requireApproval with default
-    set:
-      muster:
-        requireApproval: true
-      default: Ask
-    asserts:
-      - failedTemplate:
-          errorPattern: muster.requireApproval is deprecated and cannot be combined
-
-  # requireApproval alone keeps rendering
-  - it: renders the kagent flag for requireApproval with tools without settings
+  # chart 3.0: muster.requireApproval is gone; `default: Ask` replaces it
+  - it: refuses muster.requireApproval through the values schema (removed in 3.0)
     set:
       muster:
         requireApproval: true
       tools:
         - server:github
     asserts:
-      - equal:
-          path: spec.template.tools[0].mcp.requireApproval
-          value: true
-        template: templates/agent.yaml
-      - equal:
-          path: spec.headersFrom[0].value
-          value: server:github
-        template: templates/remotemcpserver.yaml
+      - failedTemplate:
+          errorPattern: requireApproval
 
-  - it: prints a deprecation line in NOTES.txt for requireApproval
+  - it: refuses muster.requireApproval false too (the key is gone, not only the flag)
     set:
       muster:
-        requireApproval: true
+        requireApproval: false
     asserts:
-      - matchRegexRaw:
-          pattern: muster.requireApproval is deprecated
-        template: templates/NOTES.txt
+      - failedTemplate:
+          errorPattern: requireApproval
+
+  - it: renders default Ask, what muster.requireApproval true becomes, as a header and no kagent flag
+    set:
+      toolset:
+        - server:github
+      default: Ask
+    asserts:
+      - equal:
+          path: spec.headersFrom
+          value:
+            - name: X-Muster-Toolset
+              value: server:github
+            - name: X-Muster-Tool-Approval
+              value: default=Ask
+        template: templates/remotemcpserver.yaml
+      - notExists:
+          path: spec.template.tools[0].mcp.requireApproval
+        template: templates/agent.yaml
 
   # schema
   - it: refuses a setting that is not Allow, Ask or Block through the values schema

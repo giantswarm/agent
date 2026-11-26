@@ -1,3 +1,0 @@
-{{- if .Values.muster.requireApproval }}
-muster.requireApproval is deprecated: it still pauses every tool call, and chart 3.0 migrates it to `default: Ask` (see `tools` and `default`).
-{{- end }}

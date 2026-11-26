@@ -972,47 +972,13 @@ tests:
             - list_tools
             - call_tool
 
-  - it: gates every muster tool call behind a human approval with muster.requireApproval
+  - it: refuses muster.requireApproval, removed in chart 3.0 (default Ask replaces it)
     set:
       muster:
         requireApproval: true
-    asserts:
-      - lengthEqual:
-          path: spec.template.tools
-          count: 1
-      - equal:
-          path: spec.template.tools[0].mcp.server.name
-          value: demo
-      - equal:
-          path: spec.template.tools[0].mcp.requireApproval
-          value: true
-      - notExists:
-          path: spec.template.tools[0].mcp.tools
-
-  - it: gates the narrowed binding when muster.requireApproval and muster.tools are combined
-    set:
-      muster:
-        requireApproval: true
-        tools:
-          - call_tool
-    asserts:
-      - equal:
-          path: spec.template.tools[0].mcp
-          value:
-            server:
-              kind: RemoteMCPServer
-              name: demo
-            tools:
-              - call_tool
-            requireApproval: true
-
-  - it: refuses a non-boolean muster.requireApproval through the values schema
-    set:
-      muster:
-        requireApproval: "yes"
     asserts:
       - failedTemplate:
-          errorPattern: 'muster[./]requireApproval'
+          errorPattern: 'additional properties .requireApproval. not allowed'
 
   - it: appends extraTools after the muster binding
     set:
@@ -1048,16 +1014,6 @@ tests:
     set:
       toolset:
         - preset:none
-    asserts:
-      - notExists:
-          path: spec.template.tools
-
-  - it: renders no tools for ["preset:none"] even with muster.requireApproval
-    set:
-      toolset:
-        - preset:none
-      muster:
-        requireApproval: true
     asserts:
       - notExists:
           path: spec.template.tools

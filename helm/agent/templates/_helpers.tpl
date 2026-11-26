@@ -118,8 +118,8 @@ An empty list is refused so it can never silently mean full access; more than
 128 selectors (`tools`: 32) is refused (define a preset instead);
 toolset:<name> is reserved for shared toolsets; label: exists only inside
 presets. `tools` also refuses a duplicated selector, preset:none next to other
-entries or with a setting (or `default`), and muster.requireApproval together
-with any setting. Fails the render with the offending value.
+entries or with a setting (or `default`). Fails the render with the offending
+value.
 */}}
 {{- define "agent.tools.resolve" -}}
 {{- $name := "toolset" -}}
@@ -192,9 +192,6 @@ with any setting. Fails the render with the offending value.
       {{- fail "tools: preset:none cannot carry a setting (Allow, Ask or Block) and has no default: a chat-only agent has no tools to approve" -}}
     {{- end -}}
   {{- end -}}
-{{- end -}}
-{{- if and $settings .Values.muster.requireApproval -}}
-  {{- fail "muster.requireApproval is deprecated and cannot be combined with tool approval settings (tools entries with Allow/Ask/Block, default): remove muster.requireApproval and set default: Ask" -}}
 {{- end -}}
 {{- if $selectors -}}{{ toJson $selectors }}{{- end -}}
 {{- end -}}
@@ -436,9 +433,6 @@ tools:
       {{- with .Values.muster.tools }}
       tools:
         {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- if .Values.muster.requireApproval }}
-      requireApproval: true
       {{- end }}
   {{- end }}
   {{- with .Values.extraTools }}
