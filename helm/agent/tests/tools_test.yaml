@@ -167,6 +167,14 @@ tests:
       - failedTemplate:
           errorPattern: requireApproval
 
+  - it: refuses muster.requireApproval in the template too, so a skipped schema cannot drop the ask
+    set:
+      muster:
+        requireApproval: true
+    asserts:
+      - failedTemplate:
+          errorPattern: requireApproval
+
   - it: renders default Ask, what muster.requireApproval true becomes, as a header and no kagent flag
     set:
       toolset:

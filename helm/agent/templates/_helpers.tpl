@@ -118,10 +118,15 @@ An empty list is refused so it can never silently mean full access; more than
 128 selectors (`tools`: 32) is refused (define a preset instead);
 toolset:<name> is reserved for shared toolsets; label: exists only inside
 presets. `tools` also refuses a duplicated selector, preset:none next to other
-entries or with a setting (or `default`). Fails the render with the offending
+entries or with a setting (or `default`), and muster.requireApproval (removed
+in 3.0) whatever its value, also when the values schema is skipped
+(HelmRelease disableSchemaValidation). Fails the render with the offending
 value.
 */}}
 {{- define "agent.tools.resolve" -}}
+{{- if and (kindIs "map" .Values.muster) (hasKey .Values.muster "requireApproval") -}}
+  {{- fail "muster.requireApproval was removed in agent chart 3.0: set default: Ask instead (muster asks a person before every tool call; agent-manager's migrate rewrites requireApproval: true to it). Remove the key, true or false" -}}
+{{- end -}}
 {{- $name := "toolset" -}}
 {{- $items := .Values.toolset -}}
 {{- if not (kindIs "invalid" .Values.tools) -}}
