@@ -120,7 +120,10 @@ default: Ask                                 # optional
   second header, `X-Muster-Tool-Approval: <selector>=<Setting>,...,default=<Setting>`,
   which muster applies to requests no Session binding covers (it carries no
   grants, so it only tightens); agent-manager reads them from the release values
-  and binds them, with grants, to every Session it starts.
+  and binds them, with grants, to every Session it starts. Only those bound
+  settings are enforced whatever the client does: the header is sent by the
+  agent's runtime, so for a Session agent-manager did not start the settings
+  hold only while the runtime sends it.
 - Setting `tools` and `toolset` together fails the render, as does a selector
   listed twice, `preset:none` next to other entries or with a setting (or
   `default`), and a value other than `Allow`, `Ask` or `Block`.
