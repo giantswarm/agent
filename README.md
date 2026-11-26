@@ -127,10 +127,10 @@ default: Ask                                 # optional
 - Setting `tools` and `toolset` together fails the render, as does a selector
   listed twice, `preset:none` next to other entries or with a setting (or
   `default`), and a value other than `Allow`, `Ask` or `Block`.
-- `muster.requireApproval` is deprecated: `true` alone keeps rendering kagent's
-  `requireApproval: true` and prints a deprecation line in `NOTES.txt`; with any
-  setting (an object item or `default`) the render fails. Chart 3.0 migrates
-  `requireApproval: true` to `default: Ask`.
+- `muster.requireApproval` is gone in chart 3.0: the values schema refuses the
+  key (`true` or `false`). `default: Ask` replaces `true`: muster asks a person
+  before every tool call the agent makes, where kagent's flag paused the agent
+  ([Migrating from 2.x](#migrating-from-2x)).
 - An `Allow` over a connector's `Ask` holds only when a connector admin grants
   it through agent-manager's `set_agent_approval`; without a grant the connector's
   `Ask` stays in force.
@@ -433,6 +433,30 @@ namespace's default model, the ModelConfig annotated
 (`kubectl get modelconfigs -n <namespace> -o jsonpath='{.items[?(@.metadata.annotations.agent-platform\.giantswarm\.io/is-default-model-config=="true")].metadata.name}'`),
 or to any other ModelConfig in the namespace. A release that already sets
 `modelConfig.name` upgrades unchanged.
+
+Chart 3.0 also removes `muster.requireApproval`, deprecated since `tools` and
+`default` came: the values schema refuses the key, so a 2.x release that
+still carries it fails its 3.0 render and stays on its 2.x revision, asking as
+before, until its values change. `default: Ask` replaces `muster.requireApproval: true`:
+muster, not kagent, asks a person before every tool call through it, also from
+clients other than kagent's, and nothing asks twice. `false` is dropped. A
+release that also sets `tools` entries with a setting or `default` never
+rendered (2.x refused the combination); choose its settings by hand.
+
+agent-manager's `migrate` (the Agent Platform runs it on the upgrade that moves
+the agent chart line to 3.x) does both rewrites before it moves a namespace's
+chart source: `muster.requireApproval: true` becomes `default: Ask` (only where
+the muster binding renders: not with `muster.enabled: false` or a tool list of
+exactly `["preset:none"]`), the key is dropped, and an unset `modelConfig.name`
+is written as `default-model-config`, what 2.x rendered. A GitOps-owned release
+gets the same change as a diff in the report for the owning repository; apply
+it together with the move of the source's range to 3.x.
+
+```diff
+ muster:
+-  requireApproval: true
++default: Ask
+```
 
 ## Migrating from 1.x
 
