@@ -79,7 +79,7 @@ labels:
 The technical resource name defaults to the Helm release name. By default the
 agent is wired to the platform's muster gateway with **all** of its (dynamic)
 tools — implicit full access to everything the gateway exposes to the invoking
-human. Declare a **toolset** (deprecated, use `tools` below) to compose the agent with a subset:
+human. Declare a **toolset** (deprecated, see `tools` below) to compose the agent with a subset:
 
 ```yaml
 toolset:
@@ -101,9 +101,9 @@ agent gets no wider access of its own.
 
 ### Tools with approval settings
 
-`tools` replaces `toolset` (deprecated: use `tools`). An item is a selector, or
-a one-key object that gives the selector a setting (`Allow`, `Ask` or `Block`,
-case-sensitive); `default` is the setting for every listed tool without its own:
+`tools` replaces the deprecated `toolset`. An item is a selector or a one-key
+object giving it a setting (`Allow`, `Ask` or `Block`, case-sensitive);
+`default` is the setting of every listed tool without its own.
 
 ```yaml
 tools:                                       # 1 to 32 items; unlisted tools are invisible
@@ -114,26 +114,19 @@ tools:                                       # 1 to 32 items; unlisted tools are
 default: Ask                                 # optional
 ```
 
-- The selectors alone, settings stripped, render exactly as `toolset` renders
-  them: the `X-Muster-Toolset` header, and `["preset:none"]` renders no
-  `RemoteMCPServer` and no muster binding. Settings and `default` render as a
-  second header, `X-Muster-Tool-Approval: <selector>=<Setting>,...,default=<Setting>`,
-  which muster applies to requests no Session binding covers (it carries no
-  grants, so it only tightens); agent-manager reads them from the release values
-  and binds them, with grants, to every Session it starts. Only those bound
-  settings are enforced whatever the client does: the header is sent by the
-  agent's runtime, so for a Session agent-manager did not start the settings
-  hold only while the runtime sends it.
-- Setting `tools` and `toolset` together fails the render, as does a selector
-  listed twice, `preset:none` next to other entries or with a setting (or
-  `default`), and a value other than `Allow`, `Ask` or `Block`.
-- `muster.requireApproval` is gone in chart 3.0: the values schema refuses the
-  key (`true` or `false`). `default: Ask` replaces `true`: muster asks a person
-  before every tool call the agent makes, where kagent's flag paused the agent
-  ([Migrating from 2.x](#migrating-from-2x)).
-- An `Allow` over a connector's `Ask` holds only when a connector admin grants
-  it through agent-manager's `set_agent_approval`; without a grant the connector's
-  `Ask` stays in force.
+- The selectors alone render as `toolset` does (`X-Muster-Toolset`;
+  `["preset:none"]` renders no `RemoteMCPServer` and no muster binding).
+  Settings and `default` render as the header `X-Muster-Tool-Approval`, which
+  muster applies where no Session binding carries settings (it only tightens).
+  agent-manager binds them, with grants, to every Session it starts; only
+  those bindings hold whatever the runtime does.
+- The render fails for `tools` with `toolset`, a duplicate selector,
+  `preset:none` beside other entries or with a setting or `default`, and any
+  value but `Allow`, `Ask` or `Block`.
+- An `Allow` over a connector's `Ask` needs a grant by a connector admin
+  through agent-manager's `set_agent_approval`; without it the `Ask` stays.
+- `muster.requireApproval` is removed in chart 3.0 (the schema refuses it):
+  use `default: Ask`, see [Migrating from 2.x](#migrating-from-2x).
 
 `muster.tools` narrows the binding to a subset of muster's *meta-tools*
 (`list_tools`, `call_tool`, ...), not the tools behind the gateway — a toolset
@@ -434,35 +427,28 @@ namespace's default model, the ModelConfig annotated
 or to any other ModelConfig in the namespace. A release that already sets
 `modelConfig.name` upgrades unchanged.
 
-Chart 3.0 also removes `muster.requireApproval`, deprecated since `tools` and
-`default` came: the values schema and the templates refuse the key (also
-with schema validation skipped), so a 2.x release that still carries it fails
-its 3.0 render and stays on its 2.x revision, asking as before, until its
-values change: replace it with `default: Ask`, never just delete it. `default: Ask` replaces `muster.requireApproval: true`:
-muster, not kagent, asks a person before every tool call through it, also from
-clients other than kagent's, and nothing asks twice. `false` is dropped. A
-release that also sets `tools` entries with a setting or `default` never
-rendered (no released chart ever rendered that combination); choose its
-settings by hand.
-
-agent-manager's `migrate` (the Agent Platform runs it on the upgrade that moves
-the agent chart line to 3.x) does both rewrites before it moves a namespace's
-chart source: `muster.requireApproval: true` becomes `default: Ask` (only where
-the muster binding renders: not with `muster.enabled: false` or a tool list of
-exactly `["preset:none"]`), the key is dropped, and an unset `modelConfig.name`
-is written as `default-model-config`, what 2.x rendered. A GitOps-owned release
-gets the same change as a diff in the report for the owning repository; apply
-it together with the move of the source's range to 3.x. A release with
-`spec.valuesFrom`, one whose chart source migrate cannot move, and every
-release in an organization namespace are reported with the change, never
-written: no released 2.x chart takes `default`, so values and source move
-together.
+Chart 3.0 also removes `muster.requireApproval`, in the schema and the
+templates (also with schema validation skipped): a 2.x release still carrying
+it fails its 3.0 render and stays on its 2.x revision until its values change.
+Replace `true` with `default: Ask` (muster asks a person before every tool
+call, where kagent's flag paused the agent), never just delete it; `false` is
+dropped. A release that also sets `tools` settings or `default` never rendered
+before: choose its settings by hand.
 
 ```diff
  muster:
 -  requireApproval: true
 +default: Ask
 ```
+
+agent-manager's `migrate` (run by the Agent Platform upgrade to the 3.x line)
+does both rewrites before it moves a namespace's chart source: `requireApproval:
+true` becomes `default: Ask` (only where the muster binding renders), and an
+unset `modelConfig.name` is written as `default-model-config`. A GitOps-owned
+release gets the change as a diff in the report; apply it together with the
+move of the source's range to 3.x. A release with `spec.valuesFrom`, one whose
+source migrate cannot move, and every release in an organization namespace is
+reported, never written.
 
 ## Migrating from 1.x
 

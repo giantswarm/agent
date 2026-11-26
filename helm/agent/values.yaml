@@ -290,40 +290,34 @@ muster:
 
 # @schema type:[array, null];itemRef:tool.schema.json;minItems:1;maxItems:32
 # -- (list) The tools the agent is composed with, 1 to 32 items; replaces
-# `toolset`. An item is a selector string or an object with one key (a
-# selector) whose value is `Allow`, `Ask` or `Block`, e.g. `- server:github:
-# Ask`. Selectors are `preset:<name>`, `server:<name>`, `workflow:<name>` or
-# `tool:<name>` with exact, case-sensitive names (regex
-# `^(preset|server|workflow|tool):[^\s,]+$`); a selector appears once. An
-# unlisted tool is invisible to the agent. The selectors alone render as the
-# `toolset` header (`X-Muster-Toolset` on the RemoteMCPServer; exactly
-# `["preset:none"]` renders no RemoteMCPServer and no muster binding, and
-# takes no setting and no other entry). Settings and `default` render as
-# `X-Muster-Tool-Approval` beside it (`<selector>=<Setting>,...,default=<Setting>`),
-# which muster applies where no Session binding carries them; agent-manager
-# also reads them from the release values and binds them per Session.
-# `Allow` over a connector's `Ask` holds only when a connector admin grants it
-# through agent-manager's `set_agent_approval`. Setting `tools` and `toolset`
-# together fails the render.
+# `toolset`. An item is a selector (`preset:`, `server:`, `workflow:` or
+# `tool:<name>`, exact and case-sensitive, each once) or a one-key object
+# giving it `Allow`, `Ask` or `Block`, e.g. `- server:github: Ask`. Unlisted
+# tools are invisible. The selectors render as `toolset` does (exactly
+# `["preset:none"]` renders no RemoteMCPServer and takes no setting or other
+# entry); settings and `default` render as the header `X-Muster-Tool-Approval`,
+# which muster applies where no Session binding carries them, and
+# agent-manager binds them per Session. An `Allow` over a connector's `Ask`
+# needs a grant by a connector admin through agent-manager's
+# `set_agent_approval`. `tools` with `toolset` fails the render.
 # @default -- unset: implicit full access, renders no header
 tools:
 
 # @schema type:[string, null];enum:[Allow, Ask, Block, null]
-# -- (string) The setting for every tool in `tools` without its own: `Allow`,
-# `Ask` or `Block` (case-sensitive). Optional; absent means no default.
-# Renders into `X-Muster-Tool-Approval` (and is bound by agent-manager).
-# `default: Ask` is what `muster.requireApproval: true` (removed in chart 3.0)
-# becomes: agent-manager's `migrate` rewrites it.
+# -- (string) The setting of every tool in `tools` without its own: `Allow`,
+# `Ask` or `Block` (case-sensitive). `default: Ask` replaces the removed
+# `muster.requireApproval: true`.
 # @default -- unset: no default
 default:
 
 # @schema type:[array, null];item:string;maxItems:128
-# -- (list) Deprecated: use `tools`. The tools the agent is composed with: a list of selectors that muster
-# resolves per request. Selectors are `preset:<name>`, `server:<name>`,
-# `workflow:<name>` or `tool:<name>` with exact, case-sensitive names (regex
-# `^(preset|server|workflow|tool):[^\s,]+$`); at most 128 inline and 8192 UTF-8 bytes joined by commas, define a
-# preset for more. `toolset:<name>` is reserved and refused; patterns,
-# excludes, the read-only predicate and `label:` exist only inside presets.
+# -- (list) Deprecated, use `tools`. The tools the agent is composed with: a
+# list of selectors that muster resolves per request. Selectors are
+# `preset:<name>`, `server:<name>`, `workflow:<name>` or `tool:<name>` with
+# exact, case-sensitive names (regex `^(preset|server|workflow|tool):[^\s,]+$`);
+# at most 128 inline and 8192 UTF-8 bytes joined by commas, define a preset for
+# more. `toolset:<name>` is reserved and refused; patterns, excludes, the
+# read-only predicate and `label:` exist only inside presets.
 # Rendered as the static `X-Muster-Toolset` header on the agent's
 # RemoteMCPServer (`spec.headersFrom`, the selectors joined by `,`). Exactly
 # `["preset:none"]` renders NO RemoteMCPServer and no muster binding at all, so
