@@ -444,11 +444,13 @@ before: choose its settings by hand.
 agent-manager's `migrate` (run by the Agent Platform upgrade to the 3.x line)
 does both rewrites before it moves a namespace's chart source: `requireApproval:
 true` becomes `default: Ask` (only where the muster binding renders), and an
-unset `modelConfig.name` is written as `default-model-config`. A GitOps-owned
-release gets the change as a diff in the report; apply it together with the
-move of the source's range to 3.x. A release with `spec.valuesFrom`, one whose
-source migrate cannot move, and every release in an organization namespace is
-reported, never written.
+unset `modelConfig.name` is written as `default-model-config`. Releases in
+organization namespaces that migrate manages are rewritten the same way. A
+GitOps-owned release gets the change as a diff in the report; apply it together
+with the move of the source's range to 3.x. A release with `spec.valuesFrom` or
+one whose source migrate cannot move is reported, never written. Readiness is
+reported through the ready mark the operator waits for (with the release's UID
+and generation).
 
 ## Migrating from 1.x
 
