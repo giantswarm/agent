@@ -1,0 +1,323 @@
+# Render tests for `tools` and `default` (tool approval settings): the
+# selectors render exactly as `toolset` does, settings and `default` render as
+# X-Muster-Tool-Approval, and the combinations the chart refuses fail with a message that
+# names the value.
+#
+# Run with: make helm-test (helm unittest helm/agent).
+suite: tools
+templates:
+  - templates/remotemcpserver.yaml
+  - templates/agent.yaml
+release:
+  name: demo
+  namespace: demo-ns
+set:
+  modelConfig.name: demo-model
+tests:
+  # tools without settings == toolset
+  - it: renders tools without settings as the same header as toolset
+    set:
+      tools:
+        - preset:read-only
+        - workflow:incident-triage
+    asserts:
+      - equal:
+          path: spec.headersFrom
+          value:
+            - name: X-Muster-Toolset
+              value: preset:read-only,workflow:incident-triage
+        template: templates/remotemcpserver.yaml
+      - equal:
+          path: spec.description
+          value: muster MCP gateway of agent demo (toolset preset:read-only,workflow:incident-triage)
+        template: templates/remotemcpserver.yaml
+      - equal:
+          path: spec.template.tools[0].mcp.server.name
+          value: demo
+        template: templates/agent.yaml
+
+  # tools with settings: the selectors, settings stripped
+  - it: renders the selectors of tools with settings and nothing else
+    set:
+      tools:
+        - server:pagerduty
+        - server:github: Ask
+        - tool:x_github_merge_pull_request: Allow
+        - tool:x_github_delete_repository: Block
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: templates/remotemcpserver.yaml
+      - equal:
+          path: spec.headersFrom
+          value:
+            - name: X-Muster-Toolset
+              value: server:pagerduty,server:github,tool:x_github_merge_pull_request,tool:x_github_delete_repository
+            - name: X-Muster-Tool-Approval
+              value: server:github=Ask,tool:x_github_merge_pull_request=Allow,tool:x_github_delete_repository=Block
+        template: templates/remotemcpserver.yaml
+      - equal:
+          path: spec.description
+          value: muster MCP gateway of agent demo (toolset server:pagerduty,server:github,tool:x_github_merge_pull_request,tool:x_github_delete_repository)
+        template: templates/remotemcpserver.yaml
+      - lengthEqual:
+          path: spec.template.tools
+          count: 1
+        template: templates/agent.yaml
+      - notExists:
+          path: spec.template.tools[0].mcp.requireApproval
+        template: templates/agent.yaml
+
+  - it: renders default into X-Muster-Tool-Approval
+    set:
+      tools:
+        - server:github
+      default: Ask
+    asserts:
+      - equal:
+          path: spec.headersFrom
+          value:
+            - name: X-Muster-Toolset
+              value: server:github
+            - name: X-Muster-Tool-Approval
+              value: default=Ask
+        template: templates/remotemcpserver.yaml
+      - notExists:
+          path: spec.template.tools[0].mcp.requireApproval
+        template: templates/agent.yaml
+      - notMatchRegex:
+          path: spec.description
+          pattern: Ask
+        template: templates/remotemcpserver.yaml
+
+  - it: renders a chat-only agent for tools ["preset:none"]
+    set:
+      tools:
+        - preset:none
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/remotemcpserver.yaml
+      - notExists:
+          path: spec.template.tools
+        template: templates/agent.yaml
+
+  # failures
+  - it: fails when tools and toolset are both set
+    set:
+      tools:
+        - server:a
+      toolset:
+        - server:a
+    asserts:
+      - failedTemplate:
+          errorPattern: tools and toolset are both set
+        template: templates/remotemcpserver.yaml
+
+  - it: fails on a duplicated selector in tools
+    set:
+      tools:
+        - server:github
+        - server:github: Ask
+    asserts:
+      - failedTemplate:
+          errorPattern: 'tools selector "server:github" is listed more than once'
+        template: templates/remotemcpserver.yaml
+
+  - it: fails on preset:none with a setting
+    set:
+      tools:
+        - preset:none: Ask
+    asserts:
+      - failedTemplate:
+          errorPattern: 'tools: preset:none cannot carry a setting'
+        template: templates/remotemcpserver.yaml
+
+  - it: fails on preset:none with default
+    set:
+      tools:
+        - preset:none
+      default: Ask
+    asserts:
+      - failedTemplate:
+          errorPattern: 'tools: preset:none cannot carry a setting'
+        template: templates/remotemcpserver.yaml
+
+  - it: fails on preset:none with other entries
+    set:
+      tools:
+        - preset:none
+        - server:github
+    asserts:
+      - failedTemplate:
+          errorPattern: 'tools: preset:none cannot be combined with other entries'
+        template: templates/remotemcpserver.yaml
+
+  # chart 3.0: muster.requireApproval is gone; `default: Ask` replaces it
+  - it: refuses muster.requireApproval through the values schema (removed in 3.0)
+    set:
+      muster:
+        requireApproval: true
+      tools:
+        - server:github
+    asserts:
+      - failedTemplate:
+          errorPattern: requireApproval
+
+  - it: refuses muster.requireApproval false too (the key is gone, not only the flag)
+    set:
+      muster:
+        requireApproval: false
+    asserts:
+      - failedTemplate:
+          errorPattern: requireApproval
+
+  # The template's own refusal (schema skipped) is pinned by
+  # `make helm-require-approval-test`: helm-unittest validates the schema
+  # first, whose message would satisfy any pattern here.
+
+  - it: renders default Ask, what muster.requireApproval true becomes, as a header and no kagent flag
+    set:
+      toolset:
+        - server:github
+      default: Ask
+    asserts:
+      - equal:
+          path: spec.headersFrom
+          value:
+            - name: X-Muster-Toolset
+              value: server:github
+            - name: X-Muster-Tool-Approval
+              value: default=Ask
+        template: templates/remotemcpserver.yaml
+      - notExists:
+          path: spec.template.tools[0].mcp.requireApproval
+        template: templates/agent.yaml
+
+  # schema
+  - it: refuses a setting that is not Allow, Ask or Block through the values schema
+    set:
+      tools:
+        - server:github: Deny
+    asserts:
+      - failedTemplate:
+          errorPattern: tools
+
+  - it: refuses a lower-case setting through the values schema
+    set:
+      tools:
+        - server:github: ask
+    asserts:
+      - failedTemplate:
+          errorPattern: tools
+
+  - it: refuses default Deny through the values schema
+    set:
+      default: Deny
+    asserts:
+      - failedTemplate:
+          errorPattern: default
+
+  - it: refuses an object item with two keys through the values schema
+    set:
+      tools:
+        - server:github: Ask
+          server:pagerduty: Allow
+    asserts:
+      - failedTemplate:
+          errorPattern: tools
+
+  - it: refuses an object item whose key is not a selector through the values schema
+    set:
+      tools:
+        - github: Ask
+    asserts:
+      - failedTemplate:
+          errorPattern: tools
+
+  - it: refuses an empty tools list through the values schema
+    set:
+      tools: []
+    asserts:
+      - failedTemplate:
+          errorPattern: tools
+
+  - it: renders 32 tools
+    set:
+      tools:
+        - tool:t0
+        - tool:t1
+        - tool:t2
+        - tool:t3
+        - tool:t4
+        - tool:t5
+        - tool:t6
+        - tool:t7
+        - tool:t8
+        - tool:t9
+        - tool:t10
+        - tool:t11
+        - tool:t12
+        - tool:t13
+        - tool:t14
+        - tool:t15
+        - tool:t16
+        - tool:t17
+        - tool:t18
+        - tool:t19
+        - tool:t20
+        - tool:t21
+        - tool:t22
+        - tool:t23
+        - tool:t24
+        - tool:t25
+        - tool:t26
+        - tool:t27
+        - tool:t28
+        - tool:t29
+        - tool:t30
+        - tool:t31
+    asserts:
+      - isKind:
+          of: RemoteMCPServer
+        template: templates/remotemcpserver.yaml
+
+  - it: refuses 33 tools through the values schema
+    set:
+      tools:
+        - tool:t0
+        - tool:t1
+        - tool:t2
+        - tool:t3
+        - tool:t4
+        - tool:t5
+        - tool:t6
+        - tool:t7
+        - tool:t8
+        - tool:t9
+        - tool:t10
+        - tool:t11
+        - tool:t12
+        - tool:t13
+        - tool:t14
+        - tool:t15
+        - tool:t16
+        - tool:t17
+        - tool:t18
+        - tool:t19
+        - tool:t20
+        - tool:t21
+        - tool:t22
+        - tool:t23
+        - tool:t24
+        - tool:t25
+        - tool:t26
+        - tool:t27
+        - tool:t28
+        - tool:t29
+        - tool:t30
+        - tool:t31
+        - tool:t32
+    asserts:
+      - failedTemplate:
+          errorPattern: tools

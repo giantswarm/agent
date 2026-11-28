@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "One entry of the `tools` value: a selector string, or an object with exactly one key (a selector) whose value is the tool's approval setting. Referenced from values.yaml (`tools: # @schema itemRef:tool.schema.json`) and bundled into values.schema.json by the helm-schema pre-commit hook.",
+    "oneOf": [
+        {
+            "type": "string",
+            "pattern": "^(preset|server|workflow|tool):[^\\s,]+$"
+        },
+        {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1,
+            "propertyNames": {
+                "pattern": "^(preset|server|workflow|tool):[^\\s,]+$"
+            },
+            "additionalProperties": {
+                "type": "string",
+                "enum": ["Allow", "Ask", "Block"]
+            }
+        }
+    ]
+}

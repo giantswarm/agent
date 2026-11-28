@@ -18,9 +18,17 @@ spec:
   url: {{ .Values.muster.url | quote }}
   protocol: STREAMABLE_HTTP
   timeout: {{ .Values.muster.timeout }}
-  {{- with include "agent.toolset.header" . }}
+  {{- $toolset := include "agent.toolset.header" . }}
+  {{- $approval := include "agent.tools.approvalHeader" . }}
+  {{- if or $toolset $approval }}
   headersFrom:
+    {{- with $toolset }}
     - name: X-Muster-Toolset
       value: {{ . | quote }}
+    {{- end }}
+    {{- with $approval }}
+    - name: X-Muster-Tool-Approval
+      value: {{ . | quote }}
+    {{- end }}
   {{- end }}
 {{- end }}

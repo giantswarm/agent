@@ -79,7 +79,7 @@ labels:
 The technical resource name defaults to the Helm release name. By default the
 agent is wired to the platform's muster gateway with **all** of its (dynamic)
 tools — implicit full access to everything the gateway exposes to the invoking
-human. Declare a **toolset** to compose the agent with a subset:
+human. Declare a **toolset** (deprecated, see `tools` below) to compose the agent with a subset:
 
 ```yaml
 toolset:
@@ -98,6 +98,35 @@ render (say `preset:none`), more than 32 inline selectors fail (define a
 preset), and `toolset:<name>` is reserved. Composition, not authorization: the
 human's identity and the backends' own authorization remain the boundary. The
 agent gets no wider access of its own.
+
+### Tools with approval settings
+
+`tools` replaces the deprecated `toolset`. An item is a selector or a one-key
+object giving it a setting (`Allow`, `Ask` or `Block`, case-sensitive);
+`default` is the setting of every listed tool without its own.
+
+```yaml
+tools:                                       # 1 to 32 items; unlisted tools are invisible
+  - server:pagerduty                         # visible; the connector's settings apply
+  - server:github: Ask                       # every GitHub tool asks, new ones too
+  - tool:x_github_merge_pull_request: Allow  # holds over the connector's Ask only with a grant
+  - tool:x_github_delete_repository: Block   # hidden from the agent
+default: Ask                                 # optional
+```
+
+- The selectors alone render as `toolset` does (`X-Muster-Toolset`;
+  `["preset:none"]` renders no `RemoteMCPServer` and no muster binding).
+  Settings and `default` render as the header `X-Muster-Tool-Approval`, which
+  muster applies where no Session binding carries settings (it only tightens).
+  agent-manager binds them, with grants, to every Session it starts; only
+  those bindings hold whatever the runtime does.
+- The render fails for `tools` with `toolset`, a duplicate selector,
+  `preset:none` beside other entries or with a setting or `default`, and any
+  value but `Allow`, `Ask` or `Block`.
+- An `Allow` over a connector's `Ask` needs a grant by a connector admin
+  through agent-manager's `set_agent_approval`; without it the `Ask` stays.
+- `muster.requireApproval` is removed in chart 3.0 (the schema refuses it):
+  use `default: Ask`, see [Migrating from 2.x](#migrating-from-2x).
 
 `muster.tools` narrows the binding to a subset of muster's *meta-tools*
 (`list_tools`, `call_tool`, ...), not the tools behind the gateway — a toolset
@@ -397,6 +426,31 @@ namespace's default model, the ModelConfig annotated
 (`kubectl get modelconfigs -n <namespace> -o jsonpath='{.items[?(@.metadata.annotations.agent-platform\.giantswarm\.io/is-default-model-config=="true")].metadata.name}'`),
 or to any other ModelConfig in the namespace. A release that already sets
 `modelConfig.name` upgrades unchanged.
+
+Chart 3.0 also removes `muster.requireApproval`, in the schema and the
+templates (also with schema validation skipped): a 2.x release still carrying
+it fails its 3.0 render and stays on its 2.x revision until its values change.
+Replace `true` with `default: Ask` (muster asks a person before every tool
+call, where kagent's flag paused the agent), never just delete it; `false` is
+dropped. A release that also sets `tools` settings or `default` never rendered
+before: choose its settings by hand.
+
+```diff
+ muster:
+-  requireApproval: true
++default: Ask
+```
+
+agent-manager's `migrate` (run by the Agent Platform upgrade to the 3.x line)
+does both rewrites before it moves a namespace's chart source: `requireApproval:
+true` becomes `default: Ask` (only where the muster binding renders), and an
+unset `modelConfig.name` is written as `default-model-config`. Releases in
+organization namespaces that migrate manages are rewritten the same way. A
+GitOps-owned release gets the change as a diff in the report; apply it together
+with the move of the source's range to 3.x. A release with `spec.valuesFrom` or
+one whose source migrate cannot move is reported, never written. Readiness is
+reported through the ready mark the operator waits for (with the release's UID
+and generation).
 
 ## Migrating from 1.x
 

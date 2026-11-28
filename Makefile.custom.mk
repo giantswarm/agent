@@ -22,7 +22,25 @@ helm-template: ## Render the chart with the CI values.
 # Prerequisite-only, no recipe: make merges it into the generated helm-test
 # rule, which keeps its recipe (the helm-unittest run) and gains the lint.
 .PHONY: helm-test
-helm-test: helm-lint helm-toolset-schema-test
+helm-test: helm-lint helm-toolset-schema-test helm-require-approval-test
+
+# Chart 3.0 refuses muster.requireApproval in its templates, not only in the
+# values schema: a HelmRelease with disableSchemaValidation must not render the
+# agent with neither kagent's flag nor default: Ask. helm-unittest validates
+# the schema first, so this check renders with the schema skipped.
+.PHONY: helm-require-approval-test
+helm-require-approval-test:
+	@set -eu; \
+	for v in true false; do \
+		for extra in "" "--set muster.enabled=false" "--set toolset[0]=preset:none"; do \
+			if out=$$(helm template example helm/agent --kubeconfig /dev/null --skip-schema-validation \
+				--set-string modelConfig.name=schema-test --set muster.requireApproval=$$v $$extra 2>&1); then \
+				echo "FAIL: muster.requireApproval=$$v $$extra renders with the schema skipped"; exit 1; \
+			fi; \
+			echo "$$out" | grep -q 'muster.requireApproval was removed in agent chart 3.0' || { echo "$$out" >&2; exit 1; }; \
+		done; \
+	done; \
+	helm template example helm/agent --kubeconfig /dev/null --skip-schema-validation --set-string modelConfig.name=schema-test --set default=Ask >/dev/null
 
 .PHONY: helm-toolset-schema-test
 helm-toolset-schema-test:
